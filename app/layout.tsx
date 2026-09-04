@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://thekeeplily-co.safe-tide-8904.chatgpt.site'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://thekeeplily-co.goreaniket50.chatgpt.site'),
   title: { default:'TheKeeplily Co. — Little gifts, big feelings.', template:'%s · TheKeeplily Co.' },
   description: 'Cute, thoughtful handmade gifts from Vapi. Clay charms, candles, phone accessories, cards, wax sachets and custom keepsakes.',
   keywords: ['handmade gifts India','personalised gifts Vapi','clay charms','candles','phone charms','wax sachets'],
