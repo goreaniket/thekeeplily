@@ -76,6 +76,15 @@ create table public.categories (
   updated_at timestamptz not null default now()
 );
 
+insert into public.categories (name, slug, sort_order) values
+  ('Clay Charms', 'clay-charms', 1),
+  ('Candles', 'candles', 2),
+  ('Phone Accessories', 'phone-accessories', 3),
+  ('Cards', 'cards', 4),
+  ('Wax Sachets', 'wax-sachets', 5),
+  ('Gift Sets', 'gift-sets', 6)
+on conflict (slug) do nothing;
+
 create table public.products (
   id uuid primary key default gen_random_uuid(),
   category_id uuid references public.categories(id) on delete set null,
