@@ -311,6 +311,15 @@
     refreshWishlistButtons();
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+  function boot() {
+    var ready = window.KEEPLILY_PRODUCTS_READY;
+    if (ready && typeof ready.then === 'function') ready.then(init).catch(function (error) {
+      console.warn('Keeplily catalogue initialisation failed; opening the local preview.', error);
+      init();
+    });
+    else init();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })();
