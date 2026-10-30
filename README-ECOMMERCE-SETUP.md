@@ -10,19 +10,23 @@ The ecommerce foundation is being prepared on `build/ecommerce-foundation`. The 
 
 - A Supabase database schema for products, categories, customer profiles, addresses, wishlists, orders, order items, payments, shipments, custom-gift requests, coupons, newsletter subscribers, store settings and invoice numbering.
 - Row-level security policies and private storage buckets.
-- A private admin portal at `/admin/` with admin-only sign-in, product creation/editing with image upload, and read views for orders and custom-gift requests.
+- A private admin portal at `/admin/` with admin-only sign-in, product creation/editing with image upload, read views for orders and custom-gift requests, and a contact-message inbox.
+- Supabase-backed public submissions for custom-gift requests, newsletter subscriptions and contact messages. Contact messages require the additional migration below.
 - A live catalogue loader: when Supabase is configured, active products/categories are read from Supabase; otherwise the existing local preview catalogue is used.
 
 ## Setup required before the live catalogue/admin can work
 
 1. Create a Supabase project owned by TheKeeplily Co.
 2. Open **SQL Editor** and run the complete `supabase/schema.sql` file.
-3. In Supabase **Project Settings → API**, copy the Project URL and the publishable/anon public key.
-4. Put those two public values in `js/supabase-config.js`:
+3. Run `supabase/migrations/20261030_contact_messages.sql` in SQL Editor to create the contact-message inbox table and its RLS policies.
+4. In Supabase **Project Settings → API Keys**, copy the Project URL and the publishable/anon public key.
+5. Put those two public values in `js/supabase-config.js`:
    - `url`: Supabase Project URL
    - `anonKey`: publishable/anon public key
-5. Create the owner's login in **Authentication → Users**. Do not add public admin sign-up.
-6. In SQL Editor, promote only the owner's confirmed account:
+6. Create the owner's login in **Authentication → Users**. Do not add public admin sign-up.
+7. In SQL Editor, run `supabase/setup-store-owner-admin.sql` to promote the confirmed owner account after it exists. The file targets `thekeeplilyco26@gmail.com`; do not run it before creating the Auth user.
+
+   The equivalent manual SQL is:
    ```sql
    update public.profiles
    set role = 'admin'
@@ -32,7 +36,7 @@ The ecommerce foundation is being prepared on `build/ecommerce-foundation`. The 
    );
    ```
    Replace the placeholder with the owner's exact login email. Run this only after the user exists.
-7. Deploy the repository branch to a Vercel preview and test `/admin/` and the public catalogue.
+8. Deploy the repository branch to a Vercel preview and test `/admin/`, contact/custom-gift/newsletter submissions and the public catalogue.
 
 ## Security rules
 
@@ -47,7 +51,7 @@ The ecommerce foundation is being prepared on `build/ecommerce-foundation`. The 
 The repository does not contain business credentials, so this branch does not claim these integrations are live:
 - Razorpay checkout and webhook/signature verification
 - Delhivery serviceability, rate quote, shipment, pickup, label and tracking APIs
-- Transactional email delivery
+- Transactional email delivery (forms are stored in Supabase; email notifications are not yet enabled)
 - Customer self-service account/order pages and guest checkout submission
 - Invoice PDF generation and tax/HSN configuration
 
