@@ -55,7 +55,7 @@
       '<footer><div class="footer-brand"><a class="wordmark" href="index.html"><span class="wordmark-flower">✿</span>TheKeeplily Co.</a><p>Little gifts, big feelings. ♡</p><p>Handmade in Vapi, Gujarat, India.</p></div>' +
       '<div><h3>Explore</h3><a href="shop.html">Shop</a><a href="custom-gifts.html">Custom Gifts</a><a href="about.html">About</a><a href="contact.html">Contact</a></div>' +
       '<div><h3>Helpful</h3><a href="shipping.html">Shipping</a><a href="returns.html">Returns</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div>' +
-      '<div><h3>Keep in touch</h3><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">@the_keeplily.co</a><a href="mailto:luniyasejal50@gmail.com">luniyasejal50@gmail.com</a></div>' +
+      '<div><h3>Keep in touch</h3><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">@the_keeplily.co</a><a href="mailto:thekeeplilyco26@gmail.com">thekeeplilyco26@gmail.com</a></div>' +
       '<p class="copyright">© 2026 TheKeeplily Co. · Made with a little love ♡</p></footer>';
 
     document.body.insertAdjacentHTML('beforeend',
@@ -96,9 +96,22 @@
     renderProductGrid(document.getElementById('home-favourites'), products.filter(function (product) { return product.visible && product.bestseller; }).slice(0, 4));
     renderProductGrid(document.getElementById('home-featured'), products.filter(function (product) { return product.visible && product.featured; }).slice(0, 4));
     var newsletter = document.getElementById('newsletter-form');
-    newsletter.addEventListener('submit', function (event) {
+    newsletter.addEventListener('submit', async function (event) {
       event.preventDefault();
-      newsletter.outerHTML = '<p class="newsletter-done">' + icon('check') + ' You’re on the little preview list. ♡</p>';
+      var email = document.getElementById('newsletter-email').value.trim().toLowerCase();
+      var button = newsletter.querySelector('button');
+      if (!window.KEEPLILY_SUPABASE_CLIENT) {
+        newsletter.insertAdjacentHTML('afterend', '<p class="form-error">Subscriptions are temporarily unavailable. Please try again later.</p>');
+        return;
+      }
+      if (button) button.disabled = true;
+      var result = await window.KEEPLILY_SUPABASE_CLIENT.from('newsletter_subscribers').insert({ email: email, is_active: true });
+      if (result.error && result.error.code !== '23505') {
+        if (button) button.disabled = false;
+        newsletter.insertAdjacentHTML('afterend', '<p class="form-error">We could not save your email. Please try again.</p>');
+        return;
+      }
+      newsletter.outerHTML = '<p class="newsletter-done">' + icon('check') + (result.error ? ' You’re already on our little list. ♡' : ' You’re on our little list. ♡') + '</p>';
     });
   }
 
@@ -189,13 +202,74 @@
   }
 
   function renderContact() {
-    document.getElementById('main').innerHTML = '<section class="page-hero"><p class="eyebrow">SAY A LITTLE HELLO</p><h1>We’d love to hear from you. ♡</h1><p>Questions, gifting ideas or a note about an order—send it our way.</p></section><section class="contact-layout"><div class="contact-details"><h2>Come say hello</h2><a href="mailto:luniyasejal50@gmail.com">' + icon('mail') + '<span><small>Email</small>luniyasejal50@gmail.com</span></a><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">' + icon('camera') + '<span><small>Instagram</small>@the_keeplily.co</span></a><div><span class="place-icon">♡</span><span><small>Based in</small>Vapi, Gujarat, India</span></div></div><form class="contact-form" id="contact-form"><p class="form-preview-note">Preview only: this form validates locally and does not send email.</p><label>Name<input name="name" required autocomplete="name"></label><label>Email<input name="email" required type="email" autocomplete="email"></label><label>Phone <small>Optional</small><input name="phone" inputmode="tel" autocomplete="tel"></label><label>Subject<input name="subject" required></label><label>Message<textarea name="message" required></textarea></label><button class="button primary" type="submit">Save preview message ' + icon('arrow') + '</button></form></section>';
-    document.getElementById('contact-form').addEventListener('submit', function (event) { event.preventDefault(); event.currentTarget.outerHTML = '<div class="form-success"><span class="success-icon">' + icon('check') + '</span><h2>Thanks for reaching out ♡</h2><p>Live messaging will be enabled at launch.</p></div>'; });
+    document.getElementById('main').innerHTML = '<section class="page-hero"><p class="eyebrow">SAY A LITTLE HELLO</p><h1>We’d love to hear from you. ♡</h1><p>Questions, gifting ideas or a note about an order—send it our way.</p></section><section class="contact-layout"><div class="contact-details"><h2>Come say hello</h2><a href="mailto:thekeeplilyco26@gmail.com">' + icon('mail') + '<span><small>Email</small>thekeeplilyco26@gmail.com</span></a><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">' + icon('camera') + '<span><small>Instagram</small>@the_keeplily.co</span></a><div><span class="place-icon">♡</span><span><small>Based in</small>Vapi, Gujarat, India</span></div></div><form class="contact-form" id="contact-form"><p class="form-preview-note">Preview only: this form validates locally and does not send email.</p><label>Name<input name="name" required autocomplete="name"></label><label>Email<input name="email" required type="email" autocomplete="email"></label><label>Phone <small>Optional</small><input name="phone" inputmode="tel" autocomplete="tel"></label><label>Subject<input name="subject" required></label><label>Message<textarea name="message" required></textarea></label><button class="button primary" type="submit">Save preview message ' + icon('arrow') + '</button></form></section>';
+    document.getElementById('contact-form').addEventListener('submit', async function (event) {
+      event.preventDefault();
+      var form = event.currentTarget;
+      var data = new FormData(form);
+      var button = form.querySelector('button[type="submit"]');
+      var client = window.KEEPLILY_SUPABASE_CLIENT;
+      if (!client) { form.insertAdjacentHTML('beforeend', '<p class="form-error">Messaging is temporarily unavailable. Please try again later.</p>'); return; }
+      button.disabled = true;
+      button.textContent = 'Sending…';
+      var result = await client.from('contact_messages').insert({
+        name: String(data.get('name') || '').trim(),
+        email: String(data.get('email') || '').trim().toLowerCase(),
+        phone: String(data.get('phone') || '').trim() || null,
+        subject: String(data.get('subject') || '').trim(),
+        message: String(data.get('message') || '').trim()
+      });
+      if (result.error) {
+        button.disabled = false;
+        button.innerHTML = 'Send message ' + icon('arrow');
+        form.insertAdjacentHTML('beforeend', '<p class="form-error">Your message could not be sent. Please try again.</p>');
+        return;
+      }
+      form.outerHTML = '<div class="form-success"><span class="success-icon">' + icon('check') + '</span><h2>Thanks for reaching out ♡</h2><p>Your message has been received. We’ll get back to you soon.</p></div>';
+    });
   }
 
   function renderCustomGifts() {
     document.getElementById('main').innerHTML = '<section class="page-hero custom-page-hero"><p class="eyebrow">FROM YOUR HEART, MADE BY OUR HANDS</p><h1>Made Especially for You ♡</h1><p>Have something special in mind? Tell us your idea and let’s turn it into a little keepsake.</p></section><section class="custom-form-layout"><div class="process-card"><p class="eyebrow">HOW IT WORKS</p><h2>From idea to keepsake</h2><ol><li><span>1</span><div><strong>Share your idea</strong><p>Tell us the moment, mood and details.</p></div></li><li><span>2</span><div><strong>Review together</strong><p>At launch, we’ll confirm feasibility, timeline and quote.</p></div></li><li><span>3</span><div><strong>Approve the plan</strong><p>Nothing is charged automatically.</p></div></li></ol><p class="soft-note">Preview only: this form does not send a live request.</p></div><form class="custom-form" id="custom-form"><div class="form-grid"><label>Name<input name="name" required autocomplete="name"></label><label>Email<input name="email" required type="email" autocomplete="email"></label><label>Phone<input name="phone" required inputmode="tel" autocomplete="tel"></label><label>Occasion<select name="occasion" required><option value="">Choose an occasion</option><option>Birthday</option><option>Friendship</option><option>Anniversary</option><option>Festive</option><option>Just because</option></select></label><label>Product type<select name="productType" required><option value="">What would you like?</option>' + categories.concat(['Gift Set','Something else']).map(function (name) { return '<option>' + escapeHTML(name) + '</option>'; }).join('') + '</select></label><label>Budget<input name="budget" required inputmode="numeric" placeholder="₹"></label><label>Required date<input name="requiredDate" type="date"></label><label>Quantity<input name="quantity" type="number" min="1" value="1"></label></div><label>Colours / theme<input name="theme" placeholder="Blush pink, daisies, warm neutrals…"></label><label>Customisation details<textarea name="details" required placeholder="Tell us the idea, names, initials and the feeling behind the gift…"></textarea></label><label>Gift message<textarea name="giftMessage" placeholder="Optional message for the recipient"></textarea></label><label>Notes<textarea name="notes"></textarea></label><button class="button primary full" type="submit">Preview my custom request ' + icon('arrow') + '</button></form></section>';
-    document.getElementById('custom-form').addEventListener('submit', function (event) { event.preventDefault(); document.getElementById('main').innerHTML = '<section class="confirmation"><span class="success-icon">' + icon('check') + '</span><p class="eyebrow">PREVIEW READY</p><h1>Your custom gift request looks ready ♡</h1><p>Live submissions will be enabled at launch.</p><a class="button primary" href="shop.html">Browse the collection</a></section>'; });
+    document.getElementById('custom-form').addEventListener('submit', async function (event) {
+      event.preventDefault();
+      var form = event.currentTarget;
+      var data = new FormData(form);
+      var button = form.querySelector('button[type="submit"]');
+      var client = window.KEEPLILY_SUPABASE_CLIENT;
+      if (!client) { form.insertAdjacentHTML('beforeend', '<p class="form-error">Custom requests are temporarily unavailable. Please try again later.</p>'); return; }
+      var budgetText = String(data.get('budget') || '').replace(/,/g, '');
+      var budgetNumbers = budgetText.match(/\d+(?:\.\d+)?/g) || [];
+      var description = [
+        'Customisation details: ' + String(data.get('details') || '').trim(),
+        'Additional notes: ' + String(data.get('notes') || '').trim()
+      ].filter(Boolean).join('\n\n');
+      button.disabled = true;
+      button.textContent = 'Sending request…';
+      var result = await client.from('custom_gift_requests').insert({
+        name: String(data.get('name') || '').trim(),
+        email: String(data.get('email') || '').trim().toLowerCase(),
+        phone: String(data.get('phone') || '').trim(),
+        occasion: String(data.get('occasion') || ''),
+        gift_type: String(data.get('productType') || ''),
+        budget_min: budgetNumbers.length > 1 ? Number(budgetNumbers[0]) : null,
+        budget_max: budgetNumbers.length ? Number(budgetNumbers[budgetNumbers.length - 1]) : null,
+        required_by: String(data.get('requiredDate') || '') || null,
+        quantity: Math.max(1, Number(data.get('quantity') || 1)),
+        preferred_colours: String(data.get('theme') || '').trim() || null,
+        description: description,
+        gift_message: String(data.get('giftMessage') || '').trim() || null,
+        status: 'new',
+        user_id: null
+      });
+      if (result.error) {
+        button.disabled = false;
+        button.innerHTML = 'Send custom request ' + icon('arrow');
+        form.insertAdjacentHTML('beforeend', '<p class="form-error">Your request could not be submitted. Please try again.</p>');
+        return;
+      }
+      document.getElementById('main').innerHTML = '<section class="confirmation"><span class="success-icon">' + icon('check') + '</span><p class="eyebrow">REQUEST RECEIVED</p><h1>Your custom gift request is with us ♡</h1><p>We’ll review the details and contact you about the next steps.</p><a class="button primary" href="shop.html">Browse the collection</a></section>';
+    });
   }
 
   function renderCheckout() {
@@ -218,7 +292,7 @@
   var policies = {
     shipping: { title: 'Shipping Policy', intro: 'A clear home for dispatch, delivery and shipping information.', items: ['[SHIPPING FEE TO BE CONFIRMED]', '[DELIVERY TIMELINES TO BE CONFIRMED]', 'Made-to-order preparation times will be confirmed before an order is accepted.'] },
     returns: { title: 'Returns & Refunds', intro: 'This policy will be finalised after the owner approves the terms.', items: ['[RETURN WINDOW TO BE CONFIRMED]', '[ELIGIBILITY FOR RETURNS TO BE CONFIRMED]', '[CANCELLATION POLICY TO BE CONFIRMED]'] },
-    privacy: { title: 'Privacy Policy', intro: 'The final privacy notice will explain how customer information is handled.', items: ['This static preview stores cart and wishlist data only in your browser.', '[DATA RETENTION TERMS TO BE CONFIRMED]', 'Contact: luniyasejal50@gmail.com'] },
+    privacy: { title: 'Privacy Policy', intro: 'The final privacy notice will explain how customer information is handled.', items: ['This static preview stores cart and wishlist data only in your browser.', '[DATA RETENTION TERMS TO BE CONFIRMED]', 'Contact: thekeeplilyco26@gmail.com'] },
     terms: { title: 'Terms & Conditions', intro: 'The final store terms will be published once reviewed and approved.', items: ['[ORDER ACCEPTANCE TERMS TO BE CONFIRMED]', '[CUSTOM PRODUCT TERMS TO BE CONFIRMED]', '[DISPUTE AND GOVERNING LAW TERMS TO BE CONFIRMED]'] }
   };
 
