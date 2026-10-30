@@ -8,6 +8,16 @@
   var categories = [];
 
   function message(id, text) { var node = $(id); if (node) node.textContent = text || ''; }
+  function escapeHTML(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (char) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char];
+    });
+  }
+  function optionList(options, selected) {
+    return options.map(function (value) {
+      return '<option value="'+value+'"'+(value===selected?' selected':'')+'>'+value.replace(/_/g,' ')+'</option>';
+    }).join('');
+  }
   function money(value) { return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(Number(value)||0); }
   function slug(value) { return String(value||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
   function showLogin() { $('login-view').hidden = false; $('dashboard-view').hidden = true; }
@@ -142,6 +152,24 @@
     $('new-product-button').addEventListener('click',function(){ openProductForm(null); });
     $('cancel-product-button').addEventListener('click',function(){ $('product-form').hidden=true; });
     $('product-form').addEventListener('submit',saveProduct);
+    $('orders-table').addEventListener('change', async function(event) {
+      var select = event.target.closest('[data-order-status]');
+      if (!select) return;
+      select.disabled = true;
+      var result = await client.from('orders').update({status:select.value}).eq('id',select.dataset.orderStatus);
+      if (result.error) { message('admin-message','Order status was not updated: '+result.error.message); await loadOrders(); }
+      else message('admin-message','Order status updated.');
+      select.disabled = false;
+    });
+    $('requests-table').addEventListener('change', async function(event) {
+      var select = event.target.closest('[data-request-status]');
+      if (!select) return;
+      select.disabled = true;
+      var result = await client.from('custom_gift_requests').update({status:select.value}).eq('id',select.dataset.requestStatus);
+      if (result.error) { message('admin-message','Gift request status was not updated: '+result.error.message); await loadRequests(); }
+      else { message('admin-message','Gift request status updated.'); await loadOverview(); }
+      select.disabled = false;
+    });
     $('products-table').addEventListener('click',async function(event){
       var button=event.target.closest('[data-edit-product]'); if(!button)return;
       var result=await client.from('products').select('*').eq('id',button.dataset.editProduct).single();
