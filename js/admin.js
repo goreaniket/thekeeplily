@@ -15,7 +15,7 @@
   }
   function optionList(options, selected) {
     return options.map(function (value) {
-      return '<option value="'+value+'"'+(value===selected?' selected':'')+'>'+value.replace(/_/g,' ')+'</option>';
+      return '<option value="'+escapeHTML(value)+'"'+(value===selected?' selected':'')+'>'+escapeHTML(value.replace(/_/g,' '))+'</option>';
     }).join('');
   }
   function money(value) { return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(Number(value)||0); }
@@ -27,9 +27,8 @@
     if (!session) { showLogin(); return; }
     var result = await client.from('profiles').select('role,full_name').eq('id',session.user.id).single();
     if (result.error || !result.data || result.data.role !== 'admin') {
-      await client.auth.signOut();
       showLogin();
-      message('login-message','This account does not have store administrator access.');
+      message('login-message',result.error ? 'Administrator access could not be verified. Please try again.' : 'This account does not have store administrator access.');
       return;
     }
     showDashboard(session.user.email);
@@ -41,16 +40,19 @@
       client.from('orders').select('id',{count:'exact',head:true}),
       client.from('custom_gift_requests').select('id',{count:'exact',head:true}).eq('status','new')
     ]);
-    $('stat-products').textContent = queries[0].count == null ? '—' : queries[0].count;
-    $('stat-orders').textContent = queries[1].count == null ? '—' : queries[1].count;
-    $('stat-requests').textContent = queries[2].count == null ? '—' : queries[2].count;
+    $('stat-products').textContent = queries[0].error ? '—' : queries[0].count;
+    $('stat-orders').textContent = queries[1].error ? '—' : queries[1].count;
+    $('stat-requests').textContent = queries[2].error ? '—' : queries[2].count;
+    if (queries.some(function (result) { return result.error; })) {
+      message('admin-message','Some overview statistics could not be loaded. Check the Supabase schema and access policies.');
+    }
   }
 
   async function loadCategories() {
     var result = await client.from('categories').select('id,name').eq('is_active',true).order('sort_order');
     if (result.error) throw result.error;
     categories = result.data || [];
-    $('product-category').innerHTML = categories.map(function (item) { return '<option value="'+item.id+'">'+item.name.replace(/[&<>"]/g,'')+'</option>'; }).join('');
+    $('product-category').innerHTML = categories.map(function (item) { return '<option value="'+escapeHTML(item.id)+'">'+escapeHTML(item.name)+'</option>'; }).join('');
   }
 
   async function loadProducts() {
@@ -59,16 +61,18 @@
     var result = await client.from('products').select('id,name,price,stock_quantity,status').order('created_at',{ascending:false}).limit(100);
     if (result.error) { body.innerHTML = '<tr><td colspan="4">Could not load products. Check schema setup.</td></tr>'; return; }
     body.innerHTML = (result.data||[]).map(function (p) {
-      return '<tr><td><button class="table-link" type="button" data-edit-product="'+p.id+'">'+p.name.replace(/[&<>"]/g,'')+'</button></td><td>'+money(p.price)+'</td><td>'+p.stock_quantity+'</td><td>'+p.status+'</td></tr>';
+      return '<tr><td><button class="table-link" type="button" data-edit-product="'+escapeHTML(p.id)+'">'+escapeHTML(p.name)+'</button></td><td>'+money(p.price)+'</td><td>'+Number(p.stock_quantity)+'</td><td>'+escapeHTML(p.status)+'</td></tr>';
     }).join('') || '<tr><td colspan="4">No products yet. Add the first one.</td></tr>';
   }
 
   async function loadOrders() {
     var body = $('orders-table');
-    var result = await client.from('orders').select('id,order_number,guest_email,grand_total,payment_status,status,created_at').order('created_at',{ascending:false}).limit(100);
+    var result = await client.from('orders').select('id,order_number,guest_email,user_id,shipping_address,grand_total,payment_status,status,created_at,order_items(name_snapshot,quantity)').order('created_at',{ascending:false}).limit(100);
     if (result.error) { body.innerHTML = '<tr><td colspan="5">Could not load orders.</td></tr>'; return; }
     body.innerHTML = (result.data||[]).map(function (o) {
-      return '<tr><td>'+String(o.order_number).replace(/[&<>"]/g,'')+'</td><td>'+String(o.guest_email||'Customer').replace(/[&<>"]/g,'')+'</td><td>'+money(o.grand_total)+'</td><td>'+o.payment_status+'</td><td>'+o.status+'</td></tr>';
+      var customer = (o.shipping_address || {}).full_name || o.guest_email || (o.user_id ? 'Customer' : 'Guest');
+      var items = (o.order_items || []).map(function (item) { return escapeHTML(item.name_snapshot)+' × '+Number(item.quantity); }).join(', ');
+      return '<tr><td>'+escapeHTML(o.order_number)+'<br><small>'+items+'</small></td><td>'+escapeHTML(customer)+'<br><small>'+escapeHTML(o.guest_email||'')+'</small></td><td>'+money(o.grand_total)+'</td><td>'+escapeHTML(o.payment_status)+'</td><td><select data-order-status="'+escapeHTML(o.id)+'">'+optionList(['pending_payment','confirmed','preparing','ready_to_ship','shipped','delivered','cancelled','refunded'],o.status)+'</select></td></tr>';
     }).join('') || '<tr><td colspan="5">No orders yet.</td></tr>';
   }
 
@@ -77,7 +81,7 @@
     var result = await client.from('custom_gift_requests').select('id,name,email,occasion,status,created_at').order('created_at',{ascending:false}).limit(100);
     if (result.error) { body.innerHTML = '<tr><td colspan="4">Could not load requests.</td></tr>'; return; }
     body.innerHTML = (result.data||[]).map(function (r) {
-      return '<tr><td>'+r.name.replace(/[&<>"]/g,'')+'</td><td>'+r.email.replace(/[&<>"]/g,'')+'</td><td>'+String(r.occasion||'—').replace(/[&<>"]/g,'')+'</td><td>'+r.status+'</td></tr>';
+      return '<tr><td>'+escapeHTML(r.name)+'</td><td>'+escapeHTML(r.email)+'</td><td>'+escapeHTML(r.occasion||'—')+'</td><td><select data-request-status="'+escapeHTML(r.id)+'">'+optionList(['new','reviewing','quoted','accepted','in_production','completed','declined'],r.status)+'</select></td></tr>';
     }).join('') || '<tr><td colspan="4">No requests yet.</td></tr>';
   }
 
@@ -86,7 +90,7 @@
     var result = await client.from('contact_messages').select('name,email,subject,message,created_at').order('created_at',{ascending:false}).limit(100);
     if (result.error) { body.innerHTML = '<tr><td colspan="4">Could not load messages. Run the contact-messages migration first.</td></tr>'; return; }
     body.innerHTML = (result.data||[]).map(function (item) {
-      var safe = function(value) { return String(value||'').replace(/[&<>"]/g,''); };
+      var safe = escapeHTML;
       return '<tr><td>'+safe(item.name)+'<br><small>'+safe(item.email)+'</small></td><td>'+safe(item.subject)+'</td><td>'+safe(item.message)+'</td><td>'+new Date(item.created_at).toLocaleString('en-IN')+'</td></tr>';
     }).join('') || '<tr><td colspan="4">No messages yet.</td></tr>';
   }
@@ -130,6 +134,8 @@
       var path = saved.data.id+'/'+Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'-');
       var upload = await client.storage.from('product-images').upload(path,file,{upsert:false,contentType:file.type});
       if (upload.error) { message('product-message','Product saved, but image upload failed: '+upload.error.message); return; }
+      var cleared = await client.from('product_images').update({is_primary:false}).eq('product_id',saved.data.id);
+      if (cleared.error) { message('product-message','Product saved and image uploaded, but the existing primary image could not be updated: '+cleared.error.message); return; }
       var image = await client.from('product_images').insert({product_id:saved.data.id,storage_path:path,alt_text:name,is_primary:true});
       if (image.error) { message('product-message','Product saved, but image record failed: '+image.error.message); return; }
     }
@@ -148,7 +154,11 @@
       if (result.error) { message('login-message',result.error.message); return; }
       await requireAdmin(result.data.session);
     });
-    $('signout-button').addEventListener('click',function(){ if(client) client.auth.signOut(); });
+    $('signout-button').addEventListener('click',async function(){
+      if(!client)return;
+      var result=await client.auth.signOut();
+      if(result.error)message('admin-message','Could not sign out: '+result.error.message);
+    });
     $('new-product-button').addEventListener('click',function(){ openProductForm(null); });
     $('cancel-product-button').addEventListener('click',function(){ $('product-form').hidden=true; });
     $('product-form').addEventListener('submit',saveProduct);
@@ -156,7 +166,7 @@
       var select = event.target.closest('[data-order-status]');
       if (!select) return;
       select.disabled = true;
-      var result = await client.from('orders').update({status:select.value}).eq('id',select.dataset.orderStatus);
+      var result = await client.rpc('admin_update_order_status',{p_order_id:select.dataset.orderStatus,p_status:select.value});
       if (result.error) { message('admin-message','Order status was not updated: '+result.error.message); await loadOrders(); }
       else message('admin-message','Order status updated.');
       select.disabled = false;
@@ -187,8 +197,14 @@
     showLogin();
   } else {
     bind();
-    client.auth.getSession().then(function(result){ return requireAdmin(result.data.session); });
-    client.auth.onAuthStateChange(function(_event,session){ if(!session) showLogin(); });
+    client.auth.getSession().then(function(result){
+      if(result.error){showLogin();message('login-message','The saved session could not be checked. Please sign in again.');return;}
+      return requireAdmin(result.data.session);
+    });
+    client.auth.onAuthStateChange(function(event,session){
+      if(!session){showLogin();return;}
+      if(event==='SIGNED_IN') setTimeout(function(){requireAdmin(session);},0);
+    });
     loadCategories().catch(function(error){message('admin-message','Could not load categories: '+error.message);});
   }
   if (!client) bind();

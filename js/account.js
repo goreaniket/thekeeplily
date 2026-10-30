@@ -1,0 +1,323 @@
+(function () {
+  'use strict';
+
+  var config = window.KEEPLILY_SUPABASE || {};
+  var client = window.KEEPLILY_SUPABASE_CLIENT ||
+    (window.supabase && config.url && config.anonKey
+      ? window.supabase.createClient(config.url, config.anonKey)
+      : null);
+  if (client) window.KEEPLILY_SUPABASE_CLIENT = client;
+
+  var $ = function (selector) { return document.querySelector(selector); };
+  var authView = $('#account-auth');
+  var dashboard = $('#account-dashboard');
+  var messageNode = $('#account-message');
+  var currentUser = null;
+  var recoveryMode = new URLSearchParams(window.location.search).get('mode') === 'update';
+
+  function message(text, isError) {
+    messageNode.textContent = text || '';
+    messageNode.classList.toggle('error', Boolean(isError));
+  }
+
+  function escapeHTML(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (char) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char];
+    });
+  }
+
+  function setAuthMode(mode) {
+    document.querySelectorAll('[data-auth-mode]').forEach(function (button) {
+      button.classList.toggle('active', button.dataset.authMode === mode);
+    });
+    $('#signin-form').hidden = mode !== 'signin';
+    $('#signup-form').hidden = mode !== 'signup';
+    $('#reset-form').hidden = mode !== 'reset';
+    $('#password-form').hidden = true;
+    message('');
+  }
+
+  function redirectAfterSignIn() {
+    var returnTo = new URLSearchParams(window.location.search).get('return');
+    if (returnTo === 'checkout.html') {
+      window.location.replace('checkout.html');
+      return true;
+    }
+    return false;
+  }
+
+  async function loadAddresses() {
+    var result = await client.from('customer_addresses')
+      .select('id,label,full_name,phone,address_line_1,address_line_2,landmark,city,state,postal_code,country,is_default')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
+    if (result.error) throw result.error;
+    var list = $('#address-list');
+    list.replaceChildren();
+    if (!result.data.length) {
+      list.textContent = 'No saved addresses yet.';
+      return;
+    }
+    result.data.forEach(function (address) {
+      var article = document.createElement('article');
+      article.className = 'account-list-item';
+      var text = document.createElement('p');
+      text.textContent = [
+        address.full_name, address.phone, address.address_line_1, address.address_line_2,
+        address.landmark, address.city, address.state, address.postal_code, address.country
+      ].filter(Boolean).join(' · ');
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'button secondary';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', async function () {
+        remove.disabled = true;
+        var deleted = await client.from('customer_addresses').delete()
+          .eq('id', address.id).eq('user_id', currentUser.id);
+        if (deleted.error) {
+          message('The address could not be removed. Please try again.', true);
+          remove.disabled = false;
+          return;
+        }
+        await loadAddresses();
+        message('Address removed.');
+      });
+      article.append(text, remove);
+      list.appendChild(article);
+    });
+  }
+
+  async function loadOrders() {
+    var result = await client.from('orders')
+      .select('id,order_number,status,payment_status,grand_total,created_at,order_items(name_snapshot,quantity,line_total)')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
+    if (result.error) throw result.error;
+    var list = $('#order-list');
+    list.replaceChildren();
+    if (!result.data.length) {
+      list.textContent = 'Your order history will appear here.';
+      return;
+    }
+    result.data.forEach(function (order) {
+      var article = document.createElement('article');
+      article.className = 'account-list-item account-order';
+      var heading = document.createElement('strong');
+      heading.textContent = order.order_number;
+      var status = document.createElement('p');
+      status.textContent = 'Order: ' + order.status.replace(/_/g, ' ') +
+        ' · Payment: ' + order.payment_status.replace(/_/g, ' ') +
+        ' · ' + new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(order.grand_total));
+      var items = document.createElement('p');
+      items.textContent = (order.order_items || []).map(function (item) {
+        return item.name_snapshot + ' × ' + item.quantity;
+      }).join(', ');
+      article.append(heading, status, items);
+      list.appendChild(article);
+    });
+  }
+
+  async function loadDashboard(user) {
+    currentUser = user;
+    authView.hidden = true;
+    dashboard.hidden = false;
+    var results = await Promise.all([
+      client.from('profiles').select('full_name,phone').eq('id', user.id).single(),
+      client.from('customers').select('marketing_consent').eq('user_id', user.id).single()
+    ]);
+    if (results[0].error) throw results[0].error;
+    $('#profile-form').elements.full_name.value = results[0].data.full_name || '';
+    $('#profile-form').elements.phone.value = results[0].data.phone || '';
+    $('#profile-form').elements.marketing_consent.checked =
+      !results[1].error && Boolean(results[1].data && results[1].data.marketing_consent);
+    await Promise.all([loadAddresses(), loadOrders()]);
+  }
+
+  function showSignInForMissingConfiguration() {
+    authView.hidden = false;
+    dashboard.hidden = true;
+    message('Account services are not configured. Please try again later.', true);
+  }
+
+  if (!client) {
+    showSignInForMissingConfiguration();
+    return;
+  }
+
+  document.querySelectorAll('[data-auth-mode]').forEach(function (button) {
+    button.addEventListener('click', function () { setAuthMode(button.dataset.authMode); });
+  });
+
+  $('#signin-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    var data = new FormData(event.currentTarget);
+    message('Signing in…');
+    var result = await client.auth.signInWithPassword({
+      email: String(data.get('email')).trim().toLowerCase(),
+      password: data.get('password')
+    });
+    if (result.error) {
+      message('We could not sign you in. Check your email and password, then try again.', true);
+      return;
+    }
+    if (!redirectAfterSignIn()) {
+      try {
+        await loadDashboard(result.data.user);
+        message('You’re signed in.');
+      } catch (error) {
+        message('Your account details could not be loaded. Please refresh and try again.', true);
+      }
+    }
+  });
+
+  $('#signup-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    var data = new FormData(event.currentTarget);
+    message('Creating your account…');
+    var result = await client.auth.signUp({
+      email: String(data.get('email')).trim().toLowerCase(),
+      password: data.get('password'),
+      options: {
+        data: { full_name: String(data.get('full_name')).trim() },
+        emailRedirectTo: window.location.origin + window.location.pathname
+      }
+    });
+    if (result.error) {
+      message('Your account could not be created. Please check the details and try again.', true);
+      return;
+    }
+    if (result.data.session) {
+      try {
+        await loadDashboard(result.data.user);
+        message('Your account is ready.');
+      } catch (error) {
+        message('Your account was created, but its details could not be loaded. Please sign in again.', true);
+      }
+      return;
+    }
+    message('Check your email for the confirmation link, then sign in.');
+    setAuthMode('signin');
+  });
+
+  $('#reset-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    var email = String(new FormData(event.currentTarget).get('email')).trim().toLowerCase();
+    message('Sending password reset link…');
+    var result = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname + '?mode=update'
+    });
+    if (result.error) {
+      message('The reset link could not be sent. Please check the email and try again.', true);
+      return;
+    }
+    message('If an account exists for that email, a password reset link is on its way.');
+  });
+
+  $('#password-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    var password = new FormData(event.currentTarget).get('password');
+    var result = await client.auth.updateUser({ password: password });
+    if (result.error) {
+      message('The password could not be updated. Please use a fresh reset link and try again.', true);
+      return;
+    }
+    recoveryMode = false;
+    history.replaceState(null, '', window.location.pathname);
+    setAuthMode('signin');
+    message('Your password has been updated. Please sign in.');
+  });
+
+  $('#profile-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    var data = new FormData(event.currentTarget);
+    var updated = await client.from('profiles').update({
+      full_name: String(data.get('full_name')).trim(),
+      phone: String(data.get('phone') || '').trim() || null
+    }).eq('id', currentUser.id);
+    if (updated.error) {
+      message('Your details could not be saved. Please try again.', true);
+      return;
+    }
+    var preference = await client.from('customers').update({
+      marketing_consent: data.has('marketing_consent')
+    }).eq('user_id', currentUser.id);
+    if (preference.error) {
+      message('Your details were saved, but your email preference could not be updated.', true);
+      return;
+    }
+    message('Your details have been saved.');
+  });
+
+  $('#address-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    var data = new FormData(event.currentTarget);
+    var inserted = await client.from('customer_addresses').insert({
+      user_id: currentUser.id,
+      full_name: String(data.get('full_name')).trim(),
+      phone: String(data.get('phone')).trim(),
+      address_line_1: String(data.get('address_line_1')).trim(),
+      address_line_2: String(data.get('address_line_2')).trim() || null,
+      landmark: String(data.get('landmark')).trim() || null,
+      city: String(data.get('city')).trim(),
+      state: String(data.get('state')).trim(),
+      postal_code: String(data.get('postal_code')).trim(),
+      country: 'India'
+    });
+    if (inserted.error) {
+      message('The address could not be saved. Check the fields and try again.', true);
+      return;
+    }
+    event.currentTarget.reset();
+    await loadAddresses();
+    message('Address added.');
+  });
+
+  $('#account-signout').addEventListener('click', async function () {
+    var result = await client.auth.signOut();
+    if (result.error) {
+      message('You could not be signed out. Please try again.', true);
+      return;
+    }
+    dashboard.hidden = true;
+    authView.hidden = false;
+    setAuthMode('signin');
+    message('You’re signed out.');
+  });
+
+  client.auth.onAuthStateChange(function (event, session) {
+    if (event === 'PASSWORD_RECOVERY') {
+      authView.hidden = false;
+      dashboard.hidden = true;
+      $('#signin-form').hidden = true;
+      $('#signup-form').hidden = true;
+      $('#reset-form').hidden = true;
+      $('#password-form').hidden = false;
+      return;
+    }
+    if (!session) {
+      dashboard.hidden = true;
+      authView.hidden = false;
+    }
+  });
+
+  client.auth.getSession().then(async function (result) {
+    if (result.error) {
+      message('Your saved session could not be checked. Please sign in again.', true);
+      return;
+    }
+    if (recoveryMode && result.data.session) {
+      $('#signin-form').hidden = true;
+      $('#signup-form').hidden = true;
+      $('#reset-form').hidden = true;
+      $('#password-form').hidden = false;
+    } else if (result.data.session) {
+      try {
+        if (!redirectAfterSignIn()) await loadDashboard(result.data.session.user);
+      } catch (error) {
+        message('Your account details could not be loaded. Please refresh and try again.', true);
+      }
+    }
+  }).catch(function () {
+    message('Your saved session could not be checked. Please sign in again.', true);
+  });
+})();

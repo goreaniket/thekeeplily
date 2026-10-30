@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fffaf5">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="Manage your TheKeeplily Co. customer account and orders.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+  <title>Your Account | TheKeeplily Co.</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="js/supabase-config.js" defer></script>
+  <script src="js/products.js" defer></script>
+  <script src="js/cart.js" defer></script>
+  <script src="js/main.js" defer></script>
+  <script src="js/account.js" defer></script>
+</head>
+<body data-page="account">
+  <div id="site-header"></div>
+  <main id="main">
+    <section class="page-hero"><p class="eyebrow">YOUR LITTLE CORNER</p><h1>Your account ♡</h1><p>Sign in to manage your details, addresses and orders.</p></section>
+    <section class="account-content">
+      <p class="account-message" id="account-message" role="status" aria-live="polite"></p>
+      <section id="account-auth" class="account-card">
+        <div class="account-tabs" role="tablist" aria-label="Account access">
+          <button type="button" class="active" data-auth-mode="signin">Sign in</button>
+          <button type="button" data-auth-mode="signup">Create account</button>
+          <button type="button" data-auth-mode="reset">Reset password</button>
+        </div>
+        <form id="signin-form" class="account-form">
+          <h2>Welcome back</h2>
+          <label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label>
+          <label>Password<input name="password" type="password" autocomplete="current-password" required minlength="8"></label>
+          <button class="button primary" type="submit">Sign in</button>
+        </form>
+        <form id="signup-form" class="account-form" hidden>
+          <h2>Make an account</h2>
+          <label>Your name<input name="full_name" autocomplete="name" required maxlength="120"></label>
+          <label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label>
+          <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="8"></label>
+          <button class="button primary" type="submit">Create account</button>
+        </form>
+        <form id="reset-form" class="account-form" hidden>
+          <h2>Reset your password</h2>
+          <label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label>
+          <button class="button primary" type="submit">Send reset link</button>
+        </form>
+        <form id="password-form" class="account-form" hidden>
+          <h2>Choose a new password</h2>
+          <label>New password<input name="password" type="password" autocomplete="new-password" required minlength="8"></label>
+          <button class="button primary" type="submit">Update password</button>
+        </form>
+      </section>
+
+      <section id="account-dashboard" hidden>
+        <div class="account-dashboard-heading"><div><p class="eyebrow">A LITTLE ABOUT YOU</p><h2>Your details</h2></div><button class="button secondary" id="account-signout" type="button">Sign out</button></div>
+        <form id="profile-form" class="account-card account-form">
+          <label>Full name<input name="full_name" autocomplete="name" maxlength="120" required></label>
+          <label>Phone<input name="phone" autocomplete="tel" inputmode="tel" maxlength="40"></label>
+          <label class="account-check"><input name="marketing_consent" type="checkbox"> I’d like to receive little updates by email.</label>
+          <button class="button primary" type="submit">Save details</button>
+        </form>
+        <section class="account-card">
+          <h2>Your addresses</h2>
+          <form id="address-form" class="account-form address-grid">
+            <label>Full name<input name="full_name" autocomplete="name" required maxlength="120"></label>
+            <label>Phone<input name="phone" autocomplete="tel" inputmode="tel" required maxlength="40"></label>
+            <label>Address line 1<input name="address_line_1" autocomplete="address-line1" required maxlength="240"></label>
+            <label>Address line 2<input name="address_line_2" autocomplete="address-line2" maxlength="240"></label>
+            <label>Landmark<input name="landmark" maxlength="160"></label>
+            <label>City<input name="city" autocomplete="address-level2" required maxlength="120"></label>
+            <label>State<input name="state" autocomplete="address-level1" required maxlength="120"></label>
+            <label>PIN code<input name="postal_code" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{6}" required maxlength="6"></label>
+            <button class="button primary" type="submit">Add address</button>
+          </form>
+          <div id="address-list" class="account-list"></div>
+        </section>
+        <section class="account-card">
+          <h2>Your orders</h2>
+          <div id="order-list" class="account-list"></div>
+        </section>
+      </section>
+    </section>
+  </main>
+  <div id="site-footer"></div>
+</body>
+</html>

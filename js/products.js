@@ -226,6 +226,7 @@
   // The static catalogue remains as a safe preview fallback. When Supabase is configured,
   // the live published catalogue replaces it before the storefront renders.
   var backendConfig = window.KEEPLILY_SUPABASE || {};
+  window.KEEPLILY_LIVE_CATALOGUE = false;
   window.KEEPLILY_PRODUCTS_READY = Promise.resolve().then(async function () {
     if (!window.supabase || !backendConfig.url || !backendConfig.anonKey) return;
     var client = window.KEEPLILY_SUPABASE_CLIENT || window.supabase.createClient(backendConfig.url, backendConfig.anonKey);
@@ -238,6 +239,7 @@
       console.warn('Keeplily live catalogue unavailable; using preview products.', result.error.message);
       return;
     }
+    window.KEEPLILY_LIVE_CATALOGUE = true;
     window.KEEPLILY_PRODUCTS = (result.data || []).map(function (row) {
       var images = (row.product_images || []).slice().sort(function (a,b) {
         return Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)) || a.sort_order - b.sort_order;
@@ -249,6 +251,12 @@
       var variants = Array.isArray(row.variants) && row.variants.length
         ? row.variants.map(function (item) { return typeof item === 'string' ? item : item.name; }).filter(Boolean)
         : ['One size'];
+      var variantPricing = {};
+      (row.variants || []).forEach(function (item) {
+        if (item && typeof item === 'object' && item.name) {
+          variantPricing[item.name] = Number(item.price_adjustment || 0);
+        }
+      });
       return {
         id: row.id, sku: row.sku || '', name: row.name, slug: row.slug,
         category: row.categories && row.categories.name ? row.categories.name : 'Gifts',
@@ -258,7 +266,7 @@
           return client.storage.from('product-images').getPublicUrl(item.storage_path).data.publicUrl;
         }),
         materials: row.materials || '', dimensions: row.dimensions || '', colours: [],
-        sizes: variants, variants: variants, variantPricing: {},
+        sizes: variants, variants: variants, variantPricing: variantPricing,
         customisable: Boolean(row.is_customisable), customisationCharge: Number(row.customisation_charge || 0),
         customisationNotes: '', stock: row.track_inventory ? Number(row.stock_quantity) : null,
         availability: !row.track_inventory || row.stock_quantity > 0 || row.allow_backorder ? 'available' : 'unavailable',
