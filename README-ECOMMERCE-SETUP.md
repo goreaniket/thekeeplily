@@ -18,6 +18,7 @@ For a **new Supabase project**, run these files in the SQL Editor in order:
 1. `supabase/schema.sql` — baseline schema and initial RLS/storage policies. This is a one-time bootstrap file, not a repeatable migration; do not rerun it on a populated project.
 2. `supabase/migrations/20261030_contact_messages.sql` — contact inbox table and initial policies.
 3. `supabase/migrations/20261030110000_backend_foundation.sql` — additive customer records, inventory audit log, public form RPCs, and secure order/status RPCs. This migration is designed to be safe to run again.
+4. `supabase/migrations/20261030212100_rls_access_hardening.sql` — rebuilds table policies and grants so only active catalogue data is public and private records cannot be read with the anon key. Run after the backend migration.
 
 The repository cannot show whether `20261030_contact_messages.sql` has already been executed in the hosted database. This must be checked in the Supabase dashboard. If its table and policies already exist, the file is safe to run again: it uses `CREATE TABLE IF NOT EXISTS` and replaces its named policies/trigger. Do not treat a file existing locally as proof that a migration ran.
 
@@ -30,6 +31,8 @@ The backend migration adds:
 - An idempotency key on orders.
 - Validated RPC endpoints for newsletter, contact, custom-gift, order creation, and admin order-status changes.
 - Write restrictions that prevent browser clients from editing order totals/status or payment records.
+
+The access-hardening migration removes existing policies on the affected tables before recreating the intended policies. It also removes direct anon table grants from private records and removes public coupon reads; public form writes continue through their validated RPCs.
 
 ## Customer accounts
 
@@ -56,6 +59,7 @@ The admin portal is at `/admin/`. It supports admin sign-in, overview counts, pr
 ## RLS and form security
 
 - Anonymous/authenticated catalogue reads are limited to active products and active categories; product image reads follow product visibility.
+- The access-hardening migration explicitly revokes anon access to customer, order, payment, shipment, form-submission, inventory, and configuration tables.
 - Profile/address/customer/order/order-item reads and updates are scoped to the signed-in user's own records. Role and payment fields are not customer-editable.
 - Orders, order items, inventory transactions and payment records cannot be written directly by browser roles. Order totals/prices/stock come from the server-side database function.
 - Public contact, newsletter and custom-gift submissions use validation RPCs, length/type constraints, and a honeypot field. Private submissions are not publicly readable. Newsletter duplicates return a successful already-subscribed result.
