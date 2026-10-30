@@ -11,7 +11,7 @@
   function money(value) { return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(Number(value)||0); }
   function slug(value) { return String(value||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
   function showLogin() { $('login-view').hidden = false; $('dashboard-view').hidden = true; }
-  function showDashboard(email) { $('login-view').hidden = true; $('dashboard-view').hidden = false; $('admin-email').textContent = email || ''; loadOverview(); loadProducts(); loadOrders(); loadRequests(); }
+  function showDashboard(email) { $('login-view').hidden = true; $('dashboard-view').hidden = false; $('admin-email').textContent = email || ''; loadOverview(); loadProducts(); loadOrders(); loadRequests(); loadMessages(); }
 
   async function requireAdmin(session) {
     if (!session) { showLogin(); return; }
@@ -69,6 +69,16 @@
     body.innerHTML = (result.data||[]).map(function (r) {
       return '<tr><td>'+r.name.replace(/[&<>"]/g,'')+'</td><td>'+r.email.replace(/[&<>"]/g,'')+'</td><td>'+String(r.occasion||'—').replace(/[&<>"]/g,'')+'</td><td>'+r.status+'</td></tr>';
     }).join('') || '<tr><td colspan="4">No requests yet.</td></tr>';
+  }
+
+  async function loadMessages() {
+    var body = $('messages-table');
+    var result = await client.from('contact_messages').select('name,email,subject,message,created_at').order('created_at',{ascending:false}).limit(100);
+    if (result.error) { body.innerHTML = '<tr><td colspan="4">Could not load messages. Run the contact-messages migration first.</td></tr>'; return; }
+    body.innerHTML = (result.data||[]).map(function (item) {
+      var safe = function(value) { return String(value||'').replace(/[&<>"]/g,''); };
+      return '<tr><td>'+safe(item.name)+'<br><small>'+safe(item.email)+'</small></td><td>'+safe(item.subject)+'</td><td>'+safe(item.message)+'</td><td>'+new Date(item.created_at).toLocaleString('en-IN')+'</td></tr>';
+    }).join('') || '<tr><td colspan="4">No messages yet.</td></tr>';
   }
 
   function openProductForm(product) {
