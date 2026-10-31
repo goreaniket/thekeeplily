@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#fffaf5">
+  <title>Store Admin | TheKeeplily Co.</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../css/admin.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase-config.js"></script>
+  <script src="../js/admin.js" defer></script>
+</head>
+<body>
+  <main class="admin-shell">
+    <section class="login-card" id="login-view">
+      <a class="admin-brand" href="../index.html">✿ TheKeeplily Co.</a>
+      <p class="eyebrow">PRIVATE STORE ACCESS</p>
+      <h1>Welcome back.</h1>
+      <p class="muted">Sign in with the owner-approved admin account.</p>
+      <form id="login-form">
+        <label>Email<input name="email" type="email" autocomplete="username" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="primary-button" type="submit">Sign in</button>
+        <p class="form-message" id="login-message" role="status"></p>
+      </form>
+      <p class="small-note">Admin accounts are created by the owner. Public admin sign-up is disabled.</p>
+    </section>
+
+    <section id="dashboard-view" hidden>
+      <header class="admin-topbar">
+        <div><a class="admin-brand" href="../index.html">✿ TheKeeplily Co.</a><span class="admin-label">STORE ADMIN</span></div>
+        <div class="topbar-actions"><span id="admin-email"></span><button class="quiet-button" id="signout-button" type="button">Sign out</button></div>
+      </header>
+      <div class="admin-layout">
+        <aside class="admin-sidebar">
+          <p class="eyebrow">MANAGE YOUR STORE</p>
+          <button class="nav-item active" data-panel="overview">Overview</button>
+          <button class="nav-item" data-panel="products">Products</button>
+          <button class="nav-item" data-panel="orders">Orders</button>
+          <button class="nav-item" data-panel="requests">Custom gift requests</button>
+          <button class="nav-item" data-panel="messages">Contact messages</button>
+        </aside>
+        <section class="admin-content">
+          <div class="panel active" id="panel-overview">
+            <p class="eyebrow">YOUR LITTLE BUSINESS</p><h1>Store overview</h1>
+            <div class="stats-grid">
+              <article class="stat-card"><span>Active products</span><strong id="stat-products">—</strong></article>
+              <article class="stat-card"><span>Total orders</span><strong id="stat-orders">—</strong></article>
+              <article class="stat-card"><span>New gift requests</span><strong id="stat-requests">—</strong></article>
+            </div>
+            <div class="notice-card"><strong>Owner control</strong><p>Only accounts whose Supabase profile role is <code>admin</code> can access this area. Customer accounts cannot promote themselves.</p></div>
+          </div>
+
+          <div class="panel" id="panel-products">
+            <div class="panel-heading"><div><p class="eyebrow">CATALOGUE</p><h1>Products</h1></div><button class="primary-button" id="new-product-button" type="button">Add product</button></div>
+            <div class="table-wrap"><table><thead><tr><th>Product</th><th>Price</th><th>Stock</th><th>Status</th></tr></thead><tbody id="products-table"><tr><td colspan="4">Loading products…</td></tr></tbody></table></div>
+            <form id="product-form" class="editor-card" hidden>
+              <div class="panel-heading"><h2 id="product-form-title">Add a product</h2><button class="quiet-button" id="cancel-product-button" type="button">Close</button></div>
+              <input type="hidden" name="id">
+              <div class="form-grid">
+                <label>Product name<input name="name" required maxlength="120"></label>
+                <label>SKU (optional)<input name="sku" maxlength="60"></label>
+                <label>Category<select name="category_id" id="product-category" required></select></label>
+                <label>Price (₹)<input name="price" type="number" min="0" step="0.01" required></label>
+                <label>Sale price (₹)<input name="sale_price" type="number" min="0" step="0.01"></label>
+                <label>Stock quantity<input name="stock_quantity" type="number" min="0" step="1" value="0"></label>
+                <label class="wide">Short description<input name="short_description" maxlength="180"></label>
+                <label class="wide">Description<textarea name="description" rows="4"></textarea></label>
+                <label>Product image<input name="image" type="file" accept="image/png,image/jpeg,image/webp"></label>
+                <label>Visibility<select name="status"><option value="draft">Draft</option><option value="active">Active / visible</option><option value="archived">Archived</option></select></label>
+              </div>
+              <div class="form-checks"><label><input type="checkbox" name="is_featured"> Featured</label><label><input type="checkbox" name="is_bestseller"> Bestseller</label><label><input type="checkbox" name="is_customisable"> Customisable</label></div>
+              <p class="form-message" id="product-message" role="status"></p>
+              <button class="primary-button" type="submit">Save product</button>
+            </form>
+          </div>
+
+          <div class="panel" id="panel-orders"><p class="eyebrow">CUSTOMER PURCHASES</p><h1>Orders</h1><div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead><tbody id="orders-table"><tr><td colspan="5">Loading orders…</td></tr></tbody></table></div></div>
+          <div class="panel" id="panel-requests"><p class="eyebrow">MADE PERSONAL</p><h1>Custom gift requests</h1><div class="table-wrap"><table><thead><tr><th>Request</th><th>Contact</th><th>Occasion</th><th>Status</th></tr></thead><tbody id="requests-table"><tr><td colspan="4">Loading requests…</td></tr></tbody></table></div></div>
+          <div class="panel" id="panel-messages"><p class="eyebrow">CUSTOMER ENQUIRIES</p><h1>Contact messages</h1><div class="table-wrap"><table><thead><tr><th>From</th><th>Subject</th><th>Message</th><th>Received</th></tr></thead><tbody id="messages-table"><tr><td colspan="4">Loading messages…</td></tr></tbody></table></div></div>
+          <p class="global-message" id="admin-message" role="status"></p>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
