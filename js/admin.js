@@ -147,16 +147,28 @@
   function bind() {
     $('login-form').addEventListener('submit',async function(event){
       event.preventDefault();
-      if (!client) { message('login-message','Add the Supabase project URL and anon key in js/supabase-config.js first.'); return; }
+      if (!client) { message('login-message','Supabase could not initialize. Check the connection and try again.'); return; }
       var data = new FormData(event.currentTarget);
       message('login-message','Signing in…');
-      var result = await client.auth.signInWithPassword({email:data.get('email'),password:data.get('password')});
+      var result;
+      try {
+        result = await client.auth.signInWithPassword({email:data.get('email'),password:data.get('password')});
+      } catch (error) {
+        message('login-message','Sign-in failed: '+(error && error.message ? error.message : 'Please try again.'));
+        return;
+      }
       if (result.error) { message('login-message',result.error.message); return; }
       await requireAdmin(result.data.session);
     });
     $('signout-button').addEventListener('click',async function(){
-      if(!client)return;
-      var result=await client.auth.signOut();
+      if(!client){message('admin-message','Supabase could not initialize. Check the connection and try again.');return;}
+      var result;
+      try {
+        result=await client.auth.signOut();
+      } catch (error) {
+        message('admin-message','Could not sign out: '+(error && error.message ? error.message : 'Please try again.'));
+        return;
+      }
       if(result.error)message('admin-message','Could not sign out: '+result.error.message);
     });
     $('new-product-button').addEventListener('click',function(){ openProductForm(null); });

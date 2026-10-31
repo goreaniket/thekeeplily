@@ -36,6 +36,21 @@
     messageNode.classList.toggle('error', Boolean(isError));
   }
 
+  function showAuthError(action, error) {
+    var detail = error && typeof error.message === 'string' ? error.message.trim() : '';
+    message(action + (detail ? ': ' + detail : '. Please try again.'), true);
+  }
+
+  function authClientAvailable() {
+    if (window.location.protocol === 'file:') {
+      message('Sign-in needs the hosted HTTPS site or a local HTTP server whose origin is allowed in Supabase Auth.', true);
+      return false;
+    }
+    if (client) return true;
+    message('Supabase Auth could not initialize. Check the connection and try again.', true);
+    return false;
+  }
+
   function escapeHTML(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (char) {
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char];
@@ -50,7 +65,8 @@
     $('#signup-form').hidden = mode !== 'signup';
     $('#reset-form').hidden = mode !== 'reset';
     $('#password-form').hidden = true;
-    message('');
+    if (client) message('');
+    else authClientAvailable();
   }
 
   function redirectAfterSignIn() {
@@ -92,16 +108,18 @@
       remove.className = 'button secondary';
       remove.textContent = 'Remove';
       remove.addEventListener('click', async function () {
+        if (!authClientAvailable()) return;
         remove.disabled = true;
-        var deleted = await client.from('customer_addresses').delete()
-          .eq('id', address.id).eq('user_id', currentUser.id);
-        if (deleted.error) {
-          message('The address could not be removed. Please try again.', true);
+        try {
+          var deleted = await client.from('customer_addresses').delete()
+            .eq('id', address.id).eq('user_id', currentUser.id);
+          if (deleted.error) throw deleted.error;
+          await loadAddresses();
+          message('Address removed.');
+        } catch (error) {
+          showAuthError('The address could not be removed', error);
           remove.disabled = false;
-          return;
         }
-        await loadAddresses();
-        message('Address removed.');
       });
       article.append(text, remove);
       list.appendChild(article);
@@ -157,21 +175,11 @@
   function showSignInForMissingConfiguration() {
     authView.hidden = false;
     dashboard.hidden = true;
-    message('Account services are not configured. Please try again later.', true);
-  }
-
-  if (window.location.protocol === 'file:') {
-    showSignInForMissingConfiguration();
-    message('Sign-in needs the hosted HTTPS site or a local HTTP server whose origin is allowed in Supabase Auth. This file:// page cannot authenticate.', true);
-    document.querySelectorAll('#account-auth button[type="submit"]').forEach(function (button) {
-      button.disabled = true;
-    });
-    return;
+    message('Supabase Auth could not initialize. Check the connection and try again.', true);
   }
 
   if (!client) {
     showSignInForMissingConfiguration();
-    return;
   }
 
   document.querySelectorAll('[data-auth-mode]').forEach(function (button) {
@@ -180,6 +188,7 @@
 
   $('#signin-form').addEventListener('submit', async function (event) {
     event.preventDefault();
+    if (!authClientAvailable()) return;
     var form = event.currentTarget;
     var button = form.querySelector('button[type="submit"]');
     var data = new FormData(form);
@@ -192,12 +201,12 @@
         password: data.get('password')
       });
     } catch (error) {
-      message('Sign-in is temporarily unavailable. Check your connection and try again.', true);
+      showAuthError('Sign-in failed', error);
       button.disabled = false;
       return;
     }
     if (result.error) {
-      message('We could not sign you in. Check your email and password, then try again.', true);
+      showAuthError('Sign-in failed', result.error);
       button.disabled = false;
       return;
     }
@@ -206,7 +215,7 @@
         await loadDashboard(result.data.user);
         message('You’re signed in.');
       } catch (error) {
-        message('You’re signed in, but your account details could not be loaded. Please refresh.', true);
+        showAuthError('You’re signed in, but account details could not be loaded', error);
       }
     }
     button.disabled = false;
@@ -214,6 +223,7 @@
 
   $('#signup-form').addEventListener('submit', async function (event) {
     event.preventDefault();
+    if (!authClientAvailable()) return;
     var form = event.currentTarget;
     var button = form.querySelector('button[type="submit"]');
     var data = new FormData(form);
@@ -229,7 +239,7 @@
         }
       });
       if (result.error) {
-        message('Your account could not be created. Please check the details and try again.', true);
+        showAuthError('Account creation failed', result.error);
         return;
       }
       if (result.data.session) {
@@ -238,14 +248,14 @@
           await loadDashboard(result.data.user);
           message('Your account is ready.');
         } catch (error) {
-          message('Your account was created, but its details could not be loaded. Please sign in again.', true);
+          showAuthError('Your account was created, but account details could not be loaded', error);
         }
         return;
       }
       setAuthMode('signin');
       message('Check your email for the confirmation link. After confirming, you can sign in and continue to checkout.');
     } catch (error) {
-      message('Account creation is temporarily unavailable. Check your connection and try again.', true);
+      showAuthError('Account creation failed', error);
     } finally {
       button.disabled = false;
     }
@@ -253,13 +263,23 @@
 
   $('#reset-form').addEventListener('submit', async function (event) {
     event.preventDefault();
+    if (!authClientAvailable()) return;
     var email = String(new FormData(event.currentTarget).get('email')).trim().toLowerCase();
     message('Sending password reset link…');
-    var result = await client.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + window.location.pathname + '?mode=update'
-    });
+    var resetRedirect = new URL(window.location.pathname, window.location.origin);
+    resetRedirect.searchParams.set('mode', 'update');
+    if (returnToCheckout) resetRedirect.searchParams.set('return', 'checkout.html');
+    var result;
+    try {
+      result = await client.auth.resetPasswordForEmail(email, {
+        redirectTo: resetRedirect.toString()
+      });
+    } catch (error) {
+      showAuthError('Password reset failed', error);
+      return;
+    }
     if (result.error) {
-      message('The reset link could not be sent. Please check the email and try again.', true);
+      showAuthError('Password reset failed', result.error);
       return;
     }
     message('If an account exists for that email, a password reset link is on its way.');
@@ -267,67 +287,84 @@
 
   $('#password-form').addEventListener('submit', async function (event) {
     event.preventDefault();
+    if (!authClientAvailable()) return;
     var password = new FormData(event.currentTarget).get('password');
-    var result = await client.auth.updateUser({ password: password });
+    var result;
+    try {
+      result = await client.auth.updateUser({ password: password });
+    } catch (error) {
+      showAuthError('Password update failed', error);
+      return;
+    }
     if (result.error) {
-      message('The password could not be updated. Please use a fresh reset link and try again.', true);
+      showAuthError('Password update failed', result.error);
       return;
     }
     recoveryMode = false;
-    history.replaceState(null, '', window.location.pathname);
+    var signInUrl = new URL(window.location.pathname, window.location.origin);
+    if (returnToCheckout) signInUrl.searchParams.set('return', 'checkout.html');
+    history.replaceState(null, '', signInUrl.pathname + signInUrl.search);
     setAuthMode('signin');
     message('Your password has been updated. Please sign in.');
   });
 
   $('#profile-form').addEventListener('submit', async function (event) {
     event.preventDefault();
+    if (!authClientAvailable() || !currentUser) return;
     var data = new FormData(event.currentTarget);
-    var updated = await client.from('profiles').update({
-      full_name: String(data.get('full_name')).trim(),
-      phone: String(data.get('phone') || '').trim() || null
-    }).eq('id', currentUser.id);
-    if (updated.error) {
-      message('Your details could not be saved. Please try again.', true);
-      return;
+    try {
+      var updated = await client.from('profiles').update({
+        full_name: String(data.get('full_name')).trim(),
+        phone: String(data.get('phone') || '').trim() || null
+      }).eq('id', currentUser.id);
+      if (updated.error) throw updated.error;
+      var preference = await client.from('customers').update({
+        marketing_consent: data.has('marketing_consent')
+      }).eq('user_id', currentUser.id);
+      if (preference.error) throw preference.error;
+      message('Your details have been saved.');
+    } catch (error) {
+      showAuthError('Your details could not be saved', error);
     }
-    var preference = await client.from('customers').update({
-      marketing_consent: data.has('marketing_consent')
-    }).eq('user_id', currentUser.id);
-    if (preference.error) {
-      message('Your details were saved, but your email preference could not be updated.', true);
-      return;
-    }
-    message('Your details have been saved.');
   });
 
   $('#address-form').addEventListener('submit', async function (event) {
     event.preventDefault();
+    if (!authClientAvailable() || !currentUser) return;
     var data = new FormData(event.currentTarget);
-    var inserted = await client.from('customer_addresses').insert({
-      user_id: currentUser.id,
-      full_name: String(data.get('full_name')).trim(),
-      phone: String(data.get('phone')).trim(),
-      address_line_1: String(data.get('address_line_1')).trim(),
-      address_line_2: String(data.get('address_line_2')).trim() || null,
-      landmark: String(data.get('landmark')).trim() || null,
-      city: String(data.get('city')).trim(),
-      state: String(data.get('state')).trim(),
-      postal_code: String(data.get('postal_code')).trim(),
-      country: 'India'
-    });
-    if (inserted.error) {
-      message('The address could not be saved. Check the fields and try again.', true);
-      return;
+    try {
+      var inserted = await client.from('customer_addresses').insert({
+        user_id: currentUser.id,
+        full_name: String(data.get('full_name')).trim(),
+        phone: String(data.get('phone')).trim(),
+        address_line_1: String(data.get('address_line_1')).trim(),
+        address_line_2: String(data.get('address_line_2')).trim() || null,
+        landmark: String(data.get('landmark')).trim() || null,
+        city: String(data.get('city')).trim(),
+        state: String(data.get('state')).trim(),
+        postal_code: String(data.get('postal_code')).trim(),
+        country: 'India'
+      });
+      if (inserted.error) throw inserted.error;
+      event.currentTarget.reset();
+      await loadAddresses();
+      message('Address added.');
+    } catch (error) {
+      showAuthError('The address could not be saved', error);
     }
-    event.currentTarget.reset();
-    await loadAddresses();
-    message('Address added.');
   });
 
   $('#account-signout').addEventListener('click', async function () {
-    var result = await client.auth.signOut();
+    if (!authClientAvailable()) return;
+    var result;
+    try {
+      result = await client.auth.signOut();
+    } catch (error) {
+      showAuthError('Sign-out failed', error);
+      return;
+    }
     if (result.error) {
-      message('You could not be signed out. Please try again.', true);
+      showAuthError('Sign-out failed', result.error);
       return;
     }
     dashboard.hidden = true;
@@ -336,40 +373,42 @@
     message('You’re signed out.');
   });
 
-  client.auth.onAuthStateChange(function (event, session) {
-    if (event === 'PASSWORD_RECOVERY') {
-      authView.hidden = false;
-      dashboard.hidden = true;
-      $('#signin-form').hidden = true;
-      $('#signup-form').hidden = true;
-      $('#reset-form').hidden = true;
-      $('#password-form').hidden = false;
-      return;
-    }
-    if (!session) {
-      dashboard.hidden = true;
-      authView.hidden = false;
-    }
-  });
-
-  client.auth.getSession().then(async function (result) {
-    if (result.error) {
-      message('Your saved session could not be checked. Please sign in again.', true);
-      return;
-    }
-    if (recoveryMode && result.data.session) {
-      $('#signin-form').hidden = true;
-      $('#signup-form').hidden = true;
-      $('#reset-form').hidden = true;
-      $('#password-form').hidden = false;
-    } else if (result.data.session) {
-      try {
-        if (!redirectAfterSignIn()) await loadDashboard(result.data.session.user);
-      } catch (error) {
-        message('Your account details could not be loaded. Please refresh and try again.', true);
+  if (client && window.location.protocol !== 'file:') {
+    client.auth.onAuthStateChange(function (event, session) {
+      if (event === 'PASSWORD_RECOVERY') {
+        authView.hidden = false;
+        dashboard.hidden = true;
+        $('#signin-form').hidden = true;
+        $('#signup-form').hidden = true;
+        $('#reset-form').hidden = true;
+        $('#password-form').hidden = false;
+        return;
       }
-    }
-  }).catch(function () {
-    message('Your saved session could not be checked. Please sign in again.', true);
-  });
+      if (!session) {
+        dashboard.hidden = true;
+        authView.hidden = false;
+      }
+    });
+
+    client.auth.getSession().then(async function (result) {
+      if (result.error) {
+        showAuthError('Your saved session could not be checked', result.error);
+        return;
+      }
+      if (recoveryMode && result.data.session) {
+        $('#signin-form').hidden = true;
+        $('#signup-form').hidden = true;
+        $('#reset-form').hidden = true;
+        $('#password-form').hidden = false;
+      } else if (result.data.session) {
+        try {
+          if (!redirectAfterSignIn()) await loadDashboard(result.data.session.user);
+        } catch (error) {
+          showAuthError('Your account details could not be loaded', error);
+        }
+      }
+    }).catch(function (error) {
+      showAuthError('Your saved session could not be checked', error);
+    });
+  }
 })();

@@ -192,17 +192,30 @@
     var slug = new URLSearchParams(window.location.search).get('product');
     var product = products.find(function (item) { return item.slug === slug; });
     if (!product) { renderNotFound(); return; }
+    var galleryImages = [product.image].concat(product.additionalImages || []).filter(Boolean);
     document.title = product.name + ' | TheKeeplily Co.';
     var state = { variant: product.variants[0], quantity: 1 };
     document.getElementById('main').innerHTML =
       '<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Home</a><span>/</span><a href="shop.html">Shop</a><span>/</span><span>' + escapeHTML(product.name) + '</span></nav>' +
-      '<section class="product-page"><div class="product-gallery"><div class="main-product-image"><img src="' + product.image + '" alt="' + escapeHTML(product.name) + '" style="object-position:' + escapeHTML(product.imagePosition) + '"><span class="zoom-note">' + icon('search') + ' A closer look</span></div><div class="thumb-row"><button class="active" type="button"><img src="' + product.image + '" alt="' + escapeHTML(product.name) + ', front view" style="object-position:' + escapeHTML(product.imagePosition) + '"></button><button type="button"><img src="' + product.image + '" alt="' + escapeHTML(product.name) + ', styled view" style="object-position:68% 50%"></button></div></div>' +
+      '<section class="product-page"><div class="product-gallery"><div class="main-product-image"><img id="main-product-image" src="' + escapeHTML(galleryImages[0] || product.image) + '" alt="' + escapeHTML(product.name) + '" style="object-position:' + escapeHTML(product.imagePosition) + '"><span class="zoom-note">' + icon('search') + ' A closer look</span></div><div class="thumb-row">' + galleryImages.map(function (image, index) { return '<button class="' + (index === 0 ? 'active' : '') + '" type="button" data-gallery-image="' + index + '" aria-label="Show product image ' + (index + 1) + '"><img src="' + escapeHTML(image) + '" alt="' + escapeHTML(product.name) + ', image ' + (index + 1) + '" style="object-position:' + escapeHTML(product.imagePosition) + '"></button>'; }).join('') + '</div></div>' +
       '<div class="product-panel"><p class="eyebrow">' + escapeHTML(product.category.toUpperCase()) + '</p><div class="product-title-row"><h1>' + escapeHTML(product.name) + '</h1><button class="wish-button' + (cart.getWishlist().indexOf(product.id) >= 0 ? ' active' : '') + '" type="button" data-wish="' + product.id + '" aria-label="Toggle wishlist">' + (cart.getWishlist().indexOf(product.id) >= 0 ? '♥' : '♡') + '</button></div><div class="detail-price"><strong id="product-price"></strong>' + (product.madeToOrder ? '<span>Made to order</span>' : '<span>Available</span>') + '</div><p class="detail-lead">' + escapeHTML(product.shortDescription) + '</p><div class="stock-note">' + (product.stock === null ? 'Availability confirmed with your order' : product.stock + ' in stock') + '</div>' +
       '<div class="choice-block"><span>Choose an option</span><div class="variant-row">' + product.variants.map(function (variant, index) { return '<button class="' + (index === 0 ? 'active' : '') + '" type="button" data-variant="' + escapeHTML(variant) + '">' + escapeHTML(variant) + (product.variantPricing[variant] ? ' +' + window.formatINR(product.variantPricing[variant]) : '') + '</button>'; }).join('') + '</div></div>' +
       (product.customisable ? '<div class="personalise-box"><label class="check-line"><input id="customisation-toggle" type="checkbox"><span><strong>Make it personal</strong>' + (product.customisationCharge ? ' +' + window.formatINR(product.customisationCharge) : ' Included') + '</span></label><label id="personalisation-field" hidden>Personalisation details<textarea id="personalisation" maxlength="180" placeholder="' + escapeHTML(product.customisationNotes) + '"></textarea><small><span id="personalisation-count">0</span>/180 characters</small></label></div>' : '') +
       '<label class="gift-message">Optional gift message<textarea id="gift-message" placeholder="A little note for someone special…" maxlength="200"></textarea></label><div class="purchase-row"><div class="quantity"><button id="product-decrease" type="button" aria-label="Decrease quantity">' + icon('minus') + '</button><span id="product-quantity">1</span><button id="product-increase" type="button" aria-label="Increase quantity">' + icon('plus') + '</button></div><button class="button primary grow" id="product-add" type="button">Add to bag ' + icon('bag') + '</button></div><button class="button secondary full" id="buy-now" type="button">Buy now</button><div class="micro-trust"><span>' + icon('package') + 'Carefully packed</span><span>♡<br>Made with love</span><span>✦<br>Preview mode</span></div></div></section>' +
       '<section class="detail-sections"><details open><summary>Description</summary><p>' + escapeHTML(product.description) + '</p></details><details><summary>Details</summary><p><strong>Materials:</strong> ' + escapeHTML(product.materials) + '<br><strong>Dimensions:</strong> ' + escapeHTML(product.dimensions) + '<br><strong>Colours:</strong> ' + escapeHTML(product.colours.join(', ')) + '<br><strong>Stock:</strong> ' + (product.stock === null ? 'Made to order / confirmed before dispatch' : product.stock) + '<br><strong>Preparation:</strong> ' + escapeHTML(product.preparationTime) + '</p></details><details><summary>Care Instructions</summary><p>' + escapeHTML(product.careInstructions) + '</p></details><details><summary>Shipping information</summary><p>Shipping charges and the estimated delivery timeline are shown before an order is confirmed.</p></details></section>' +
       '<section class="section products-section">' + sectionHeading('MORE TO KEEP', 'You May Also Like ♡') + '<div class="product-grid" id="related-products"></div></section>';
+
+    document.querySelectorAll('[data-gallery-image]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var imageIndex = Number(button.dataset.galleryImage);
+        var image = galleryImages[imageIndex];
+        if (!image) return;
+        document.getElementById('main-product-image').src = image;
+        document.querySelectorAll('[data-gallery-image]').forEach(function (thumbnail) {
+          thumbnail.classList.toggle('active', thumbnail === button);
+        });
+      });
+    });
 
     function currentPrice() {
       return productPrice(product) + (product.variantPricing[state.variant] || 0) + ((document.getElementById('customisation-toggle') || {}).checked ? product.customisationCharge : 0);
@@ -324,7 +337,7 @@
       return;
     }
     if (!client) {
-      document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Checkout is not connected yet</h1><p>Your cart is still saved in this browser. Live ordering becomes available after the Supabase catalogue and order migration are configured.</p><a class="button primary" href="shop.html">Keep browsing</a></section>';
+      document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Checkout is not connected yet</h1><p>Your cart is still saved in this browser. Supabase could not initialize, so you cannot place an order right now.</p><a class="button primary" href="account.html?return=checkout.html">Try signing in again</a><a class="button secondary" href="shop.html">Keep browsing</a></section>';
       return;
     }
 
