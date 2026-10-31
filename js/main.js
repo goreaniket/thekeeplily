@@ -81,7 +81,7 @@
     if (footer) footer.innerHTML =
       '<footer><div class="footer-brand"><a class="wordmark" href="index.html"><span class="wordmark-flower">✿</span>TheKeeplily Co.</a><p>Little gifts, big feelings. ♡</p><p>Handmade in Vapi, Gujarat, India.</p><a href="account.html">My account</a></div>' +
       '<div><h3>Explore</h3><a href="shop.html">Shop</a><a href="custom-gifts.html">Custom Gifts</a><a href="about.html">About</a><a href="contact.html">Contact</a></div>' +
-      '<div><h3>Helpful</h3><a href="shipping.html">Shipping</a><a href="returns.html">Returns</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div>' +
+      '<div><h3>Helpful</h3><a href="shipping.html">Shipping</a><a href="returns.html">Returns</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="copyright.html">Copyright</a></div>' +
       '<div><h3>Keep in touch</h3><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">@the_keeplily.co</a><a href="mailto:thekeeplilyco26@gmail.com">thekeeplilyco26@gmail.com</a></div>' +
       '<p class="copyright">© 2026 TheKeeplily Co. · Made with a little love ♡</p></footer>';
 
@@ -274,6 +274,17 @@
 
   function renderContact() {
     document.getElementById('main').innerHTML = '<section class="page-hero"><p class="eyebrow">SAY A LITTLE HELLO</p><h1>We’d love to hear from you. ♡</h1><p>Questions, gifting ideas or a note about an order—send it our way.</p></section><section class="contact-layout"><div class="contact-details"><h2>Come say hello</h2><a href="mailto:thekeeplilyco26@gmail.com">' + icon('mail') + '<span><small>Email</small>thekeeplilyco26@gmail.com</span></a><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">' + icon('camera') + '<span><small>Instagram</small>@the_keeplily.co</span></a><div><span class="place-icon">♡</span><span><small>Based in</small>Vapi, Gujarat, India</span></div></div><form class="contact-form" id="contact-form"><label>Name<input name="name" required maxlength="120" autocomplete="name"></label><label>Email<input name="email" required type="email" maxlength="254" autocomplete="email"></label><label>Phone <small>Optional</small><input name="phone" inputmode="tel" maxlength="40" autocomplete="tel"></label><label>Subject<input name="subject" required maxlength="180"></label><label>Message<textarea name="message" required maxlength="5000"></textarea></label><label class="form-trap" aria-hidden="true">Leave this empty<input name="website" type="text" tabindex="-1" autocomplete="off"></label><button class="button primary" type="submit">Send message ' + icon('arrow') + '</button><p class="form-message" data-form-message role="status" aria-live="polite"></p></form></section>';
+    var contactSubmissionKey = null;
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      contactSubmissionKey = window.crypto.randomUUID();
+    } else if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+      var randomBytes = window.crypto.getRandomValues(new Uint8Array(16));
+      randomBytes[6] = (randomBytes[6] & 15) | 64;
+      randomBytes[8] = (randomBytes[8] & 63) | 128;
+      contactSubmissionKey = Array.from(randomBytes).map(function (value) {
+        return value.toString(16).padStart(2, '0');
+      }).join('').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+    }
     document.getElementById('contact-form').addEventListener('submit', async function (event) {
       event.preventDefault();
       var form = event.currentTarget;
@@ -281,6 +292,7 @@
       var button = form.querySelector('button[type="submit"]');
       var client = window.KEEPLILY_SUPABASE_CLIENT;
       if (!client) { setFormMessage(form, 'Messaging is temporarily unavailable. Please try again later.', true); return; }
+      if (!contactSubmissionKey) { setFormMessage(form, 'Secure message submission is unavailable in this browser.', true); return; }
       button.disabled = true;
       button.textContent = 'Sending…';
       setFormMessage(form, 'Sending…');
@@ -292,18 +304,19 @@
           p_phone: String(data.get('phone') || '').trim() || null,
           p_subject: String(data.get('subject') || '').trim(),
           p_message: String(data.get('message') || '').trim(),
-          p_website: String(data.get('website') || '')
+          p_website: String(data.get('website') || ''),
+          p_submission_key: contactSubmissionKey
         });
       } catch (error) {
         button.disabled = false;
         button.innerHTML = 'Send message ' + icon('arrow');
-        setFormMessage(form, 'Your message could not be sent. Please try again.', true);
+        setFormMessage(form, 'Your message could not be sent: ' + (error && error.message ? error.message : 'Please try again.'), true);
         return;
       }
-      if (result.error) {
+      if (result.error || !result.data) {
         button.disabled = false;
         button.innerHTML = 'Send message ' + icon('arrow');
-        setFormMessage(form, 'Your message could not be sent. Please check the fields and try again.', true);
+        setFormMessage(form, result.error ? 'Your message could not be sent: ' + result.error.message : 'The message could not be confirmed as saved. Please try again.', true);
         return;
       }
       form.outerHTML = '<div class="form-success"><span class="success-icon">' + icon('check') + '</span><h2>Thanks for reaching out ♡</h2><p>Your message has been received. We’ll get back to you soon.</p></div>';
@@ -635,8 +648,9 @@
   var policies = {
     shipping: { title: 'Shipping Policy', intro: 'A clear home for dispatch, delivery and shipping information.', items: ['[SHIPPING FEE TO BE CONFIRMED]', '[DELIVERY TIMELINES TO BE CONFIRMED]', 'Made-to-order preparation times will be confirmed before an order is accepted.'] },
     returns: { title: 'Returns & Refunds', intro: 'This policy will be finalised after the owner approves the terms.', items: ['[RETURN WINDOW TO BE CONFIRMED]', '[ELIGIBILITY FOR RETURNS TO BE CONFIRMED]', '[CANCELLATION POLICY TO BE CONFIRMED]'] },
-    privacy: { title: 'Privacy Policy', intro: 'The final privacy notice will explain how customer information is handled.', items: ['Cart and wishlist data are stored in your browser. Account details, addresses, submitted forms and order information are stored in Supabase when those services are enabled.', '[DATA RETENTION TERMS TO BE CONFIRMED]', 'Contact: thekeeplilyco26@gmail.com'] },
-    terms: { title: 'Terms & Conditions', intro: 'The final store terms will be published once reviewed and approved.', items: ['[ORDER ACCEPTANCE TERMS TO BE CONFIRMED]', '[CUSTOM PRODUCT TERMS TO BE CONFIRMED]', '[DISPUTE AND GOVERNING LAW TERMS TO BE CONFIRMED]'] }
+    privacy: { title: 'Privacy Policy', intro: 'This notice describes the information the store may collect when you browse, contact us, create an account, or place an order.', items: ['Information may include account name and email, profile phone number, delivery and billing addresses, order items and status, contact or custom-gift form details, newsletter email and consent, and cart or wishlist data stored in your browser.', 'We use this information to provide account access, maintain your cart and wishlist, respond to enquiries, prepare custom-gift quotations, process and fulfil orders, support customers, and send newsletter updates only where you subscribe.', 'Account, address, order, payment-reference, and submitted form records are stored in the store’s Supabase database when those services are enabled. Payment processing is provided by the configured payment provider; do not send full card details in a message.', 'Cart and wishlist information is stored in your browser. Authentication session data is used to keep you signed in. Do not use a shared device without signing out.', '[DATA RETENTION, DELETION REQUESTS, AND ANY ADDITIONAL PROCESSORS TO BE CONFIRMED BY THE OWNER.]', 'For a privacy question or data request, contact the store at thekeeplilyco26@gmail.com.'] },
+    terms: { title: 'Terms & Conditions', intro: 'These terms require owner review before orders or payments are accepted.', items: ['[ORDER ACCEPTANCE, PRICING, AND PAYMENT TERMS TO BE CONFIRMED]', '[SHIPPING CHARGES, DELIVERY ESTIMATES, TAX TREATMENT, AND FULFILMENT TERMS TO BE CONFIRMED]', '[CUSTOM PRODUCT APPROVAL, CANCELLATION, RETURN, AND REFUND TERMS TO BE CONFIRMED]', '[GOVERNING LAW AND DISPUTE TERMS TO BE CONFIRMED]'] },
+    copyright: { title: 'Copyright & Intellectual Property', intro: 'TheKeeplily Co. — Owned by Sejal Luniya.', items: ['Website text, product descriptions, product photography, branding and logo, original product designs, illustrations, and other creative materials are original materials of TheKeeplily Co. or are used with permission.', 'Except where applicable law permits or written permission is granted by TheKeeplily Co., copying, reproducing, adapting, distributing, publishing, or commercially using these materials is prohibited.', 'Do not remove copyright or attribution notices or redistribute copies of site content, images, designs, or creative materials.', 'To request permission or report a rights concern, contact thekeeplilyco26@gmail.com.'] }
   };
 
   function renderPolicy(name) {
@@ -714,7 +728,7 @@
     shell();
     bindGlobalEvents();
     var page = document.body.dataset.page || 'home';
-    var titles = { home: 'TheKeeplily Co. | Little gifts, big feelings.', shop: 'Shop | TheKeeplily Co.', about: 'About | TheKeeplily Co.', contact: 'Contact | TheKeeplily Co.', custom: 'Custom Gifts | TheKeeplily Co.', checkout: 'Checkout | TheKeeplily Co.', account: 'Your Account | TheKeeplily Co.', shipping: 'Shipping Policy | TheKeeplily Co.', returns: 'Returns & Refunds | TheKeeplily Co.', privacy: 'Privacy Policy | TheKeeplily Co.', terms: 'Terms & Conditions | TheKeeplily Co.', 'not-found': 'Page not found | TheKeeplily Co.' };
+    var titles = { home: 'TheKeeplily Co. | Little gifts, big feelings.', shop: 'Shop | TheKeeplily Co.', about: 'About | TheKeeplily Co.', contact: 'Contact | TheKeeplily Co.', custom: 'Custom Gifts | TheKeeplily Co.', checkout: 'Checkout | TheKeeplily Co.', account: 'Your Account | TheKeeplily Co.', shipping: 'Shipping Policy | TheKeeplily Co.', returns: 'Returns & Refunds | TheKeeplily Co.', privacy: 'Privacy Policy | TheKeeplily Co.', terms: 'Terms & Conditions | TheKeeplily Co.', copyright: 'Copyright | TheKeeplily Co.', 'not-found': 'Page not found | TheKeeplily Co.' };
     if (titles[page]) document.title = titles[page];
     if (page === 'home') renderHome();
     else if (page === 'shop') renderShop();

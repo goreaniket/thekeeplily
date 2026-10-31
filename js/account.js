@@ -13,6 +13,8 @@
   var dashboard = $('#account-dashboard');
   var messageNode = $('#account-message');
   var currentUser = null;
+  var otpSentAt = 0;
+  var otpCooldownTimer = null;
   var pageUrl = new URL(window.location.href);
   var recoveryMode = pageUrl.searchParams.get('mode') === 'update';
   var returnToCheckout = pageUrl.searchParams.get('return') === 'checkout.html';
@@ -62,9 +64,16 @@
       button.classList.toggle('active', button.dataset.authMode === mode);
     });
     $('#signin-form').hidden = mode !== 'signin';
+    $('#otp-form').hidden = mode !== 'otp';
     $('#signup-form').hidden = mode !== 'signup';
     $('#reset-form').hidden = mode !== 'reset';
     $('#password-form').hidden = true;
+    if (mode !== 'otp') {
+      $('#otp-code-label').hidden = true;
+      $('#verify-otp-button').hidden = true;
+      $('#otp-form').elements.token.required = false;
+      $('#otp-form').elements.token.value = '';
+    }
     if (client) message('');
     else authClientAvailable();
   }
@@ -81,6 +90,25 @@
     var redirectUrl = new URL(window.location.pathname, window.location.origin);
     if (returnToCheckout) redirectUrl.searchParams.set('return', 'checkout.html');
     return redirectUrl.toString();
+  }
+
+  function startOtpCooldown() {
+    var button = $('#send-otp-button');
+    if (otpCooldownTimer) window.clearInterval(otpCooldownTimer);
+    function updateCooldown() {
+      var remaining = Math.ceil((otpSentAt + 60000 - Date.now()) / 1000);
+      if (remaining <= 0) {
+        window.clearInterval(otpCooldownTimer);
+        otpCooldownTimer = null;
+        button.disabled = false;
+        button.textContent = 'Resend one-time code';
+        return;
+      }
+      button.disabled = true;
+      button.textContent = 'Resend code in ' + remaining + 's';
+    }
+    updateCooldown();
+    otpCooldownTimer = window.setInterval(updateCooldown, 1000);
   }
 
   async function loadAddresses() {
@@ -163,12 +191,14 @@
     authView.hidden = true;
     dashboard.hidden = false;
     var results = await Promise.all([
-      client.from('profiles').select('full_name,phone').eq('id', user.id).single(),
+      client.from('profiles').select('full_name,phone,role').eq('id', user.id).single(),
       client.from('customers').select('marketing_consent').eq('user_id', user.id).single()
     ]);
     if (results[0].error) throw results[0].error;
     $('#profile-form').elements.full_name.value = results[0].data.full_name || '';
     $('#profile-form').elements.phone.value = results[0].data.phone || '';
+    var adminLink = $('#admin-dashboard-link');
+    if (adminLink) adminLink.hidden = results[0].data.role !== 'admin';
     $('#profile-form').elements.marketing_consent.checked =
       !results[1].error && Boolean(results[1].data && results[1].data.marketing_consent);
     await Promise.all([loadAddresses(), loadOrders()]);
@@ -186,6 +216,59 @@
 
   document.querySelectorAll('[data-auth-mode]').forEach(function (button) {
     button.addEventListener('click', function () { setAuthMode(button.dataset.authMode); });
+  });
+
+  $('#send-otp-button').addEventListener('click', async function () {
+    if (!authClientAvailable()) return;
+    var button = this;
+    var email = String($('#otp-form').elements.email.value || '').trim().toLowerCase();
+    if (!email || !$('#otp-form').elements.email.reportValidity()) return;
+    if (Date.now() < otpSentAt + 60000) {
+      startOtpCooldown();
+      return;
+    }
+    button.disabled = true;
+    message('Sending a sign-in code…');
+    try {
+      var result = await client.auth.signInWithOtp({
+        email: email,
+        options: { shouldCreateUser: false }
+      });
+      if (result.error) throw result.error;
+      otpSentAt = Date.now();
+      $('#otp-code-label').hidden = false;
+      $('#verify-otp-button').hidden = false;
+      $('#otp-form').elements.token.required = true;
+      message('If an account exists for this email, a sign-in code has been sent.');
+      startOtpCooldown();
+    } catch (error) {
+      button.disabled = false;
+      showAuthError('A sign-in code could not be sent', error);
+    }
+  });
+
+  $('#otp-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    if (!authClientAvailable()) return;
+    var form = event.currentTarget;
+    var button = $('#verify-otp-button');
+    var email = String(form.elements.email.value || '').trim().toLowerCase();
+    var token = String(form.elements.token.value || '').trim();
+    button.disabled = true;
+    message('Verifying your code…');
+    try {
+      var result = await client.auth.verifyOtp({ email: email, token: token, type: 'email' });
+      if (result.error) throw result.error;
+      if (!result.data.user) throw new Error('The verified account was not returned by Supabase.');
+      if (!redirectAfterSignIn()) {
+        await loadDashboard(result.data.user);
+        message('You’re signed in.');
+      }
+    } catch (error) {
+      showAuthError('Email code verification failed', error);
+    } finally {
+      button.disabled = false;
+    }
   });
 
   $('#signin-form').addEventListener('submit', async function (event) {
