@@ -13,7 +13,23 @@
   var dashboard = $('#account-dashboard');
   var messageNode = $('#account-message');
   var currentUser = null;
-  var recoveryMode = new URLSearchParams(window.location.search).get('mode') === 'update';
+  var pageUrl = new URL(window.location.href);
+  var recoveryMode = pageUrl.searchParams.get('mode') === 'update';
+  var returnToCheckout = pageUrl.searchParams.get('return') === 'checkout.html';
+  var removedCredentials = false;
+  Array.from(pageUrl.searchParams.keys()).forEach(function (key) {
+    if (key.toLowerCase() === 'email' || key.toLowerCase() === 'password') {
+      pageUrl.searchParams.delete(key);
+      removedCredentials = true;
+    }
+  });
+  if (removedCredentials) {
+    try {
+      window.history.replaceState(null, '', pageUrl.pathname + pageUrl.search + pageUrl.hash);
+    } catch (error) {
+      console.warn('Sensitive sign-in query parameters could not be removed from browser history.');
+    }
+  }
 
   function message(text, isError) {
     messageNode.textContent = text || '';
@@ -38,12 +54,17 @@
   }
 
   function redirectAfterSignIn() {
-    var returnTo = new URLSearchParams(window.location.search).get('return');
-    if (returnTo === 'checkout.html') {
+    if (returnToCheckout) {
       window.location.replace('checkout.html');
       return true;
     }
     return false;
+  }
+
+  function signupRedirectUrl() {
+    var redirectUrl = new URL(window.location.pathname, window.location.origin);
+    if (returnToCheckout) redirectUrl.searchParams.set('return', 'checkout.html');
+    return redirectUrl.toString();
   }
 
   async function loadAddresses() {
@@ -139,6 +160,15 @@
     message('Account services are not configured. Please try again later.', true);
   }
 
+  if (window.location.protocol === 'file:') {
+    showSignInForMissingConfiguration();
+    message('Sign-in needs the hosted HTTPS site or a local HTTP server whose origin is allowed in Supabase Auth. This file:// page cannot authenticate.', true);
+    document.querySelectorAll('#account-auth button[type="submit"]').forEach(function (button) {
+      button.disabled = true;
+    });
+    return;
+  }
+
   if (!client) {
     showSignInForMissingConfiguration();
     return;
@@ -150,14 +180,25 @@
 
   $('#signin-form').addEventListener('submit', async function (event) {
     event.preventDefault();
-    var data = new FormData(event.currentTarget);
+    var form = event.currentTarget;
+    var button = form.querySelector('button[type="submit"]');
+    var data = new FormData(form);
+    button.disabled = true;
     message('Signing in…');
-    var result = await client.auth.signInWithPassword({
-      email: String(data.get('email')).trim().toLowerCase(),
-      password: data.get('password')
-    });
+    var result;
+    try {
+      result = await client.auth.signInWithPassword({
+        email: String(data.get('email')).trim().toLowerCase(),
+        password: data.get('password')
+      });
+    } catch (error) {
+      message('Sign-in is temporarily unavailable. Check your connection and try again.', true);
+      button.disabled = false;
+      return;
+    }
     if (result.error) {
       message('We could not sign you in. Check your email and password, then try again.', true);
+      button.disabled = false;
       return;
     }
     if (!redirectAfterSignIn()) {
@@ -165,38 +206,49 @@
         await loadDashboard(result.data.user);
         message('You’re signed in.');
       } catch (error) {
-        message('Your account details could not be loaded. Please refresh and try again.', true);
+        message('You’re signed in, but your account details could not be loaded. Please refresh.', true);
       }
     }
+    button.disabled = false;
   });
 
   $('#signup-form').addEventListener('submit', async function (event) {
     event.preventDefault();
-    var data = new FormData(event.currentTarget);
+    var form = event.currentTarget;
+    var button = form.querySelector('button[type="submit"]');
+    var data = new FormData(form);
+    button.disabled = true;
     message('Creating your account…');
-    var result = await client.auth.signUp({
-      email: String(data.get('email')).trim().toLowerCase(),
-      password: data.get('password'),
-      options: {
-        data: { full_name: String(data.get('full_name')).trim() },
-        emailRedirectTo: window.location.origin + window.location.pathname
+    try {
+      var result = await client.auth.signUp({
+        email: String(data.get('email')).trim().toLowerCase(),
+        password: data.get('password'),
+        options: {
+          data: { full_name: String(data.get('full_name')).trim() },
+          emailRedirectTo: signupRedirectUrl()
+        }
+      });
+      if (result.error) {
+        message('Your account could not be created. Please check the details and try again.', true);
+        return;
       }
-    });
-    if (result.error) {
-      message('Your account could not be created. Please check the details and try again.', true);
-      return;
-    }
-    if (result.data.session) {
-      try {
-        await loadDashboard(result.data.user);
-        message('Your account is ready.');
-      } catch (error) {
-        message('Your account was created, but its details could not be loaded. Please sign in again.', true);
+      if (result.data.session) {
+        if (redirectAfterSignIn()) return;
+        try {
+          await loadDashboard(result.data.user);
+          message('Your account is ready.');
+        } catch (error) {
+          message('Your account was created, but its details could not be loaded. Please sign in again.', true);
+        }
+        return;
       }
-      return;
+      setAuthMode('signin');
+      message('Check your email for the confirmation link. After confirming, you can sign in and continue to checkout.');
+    } catch (error) {
+      message('Account creation is temporarily unavailable. Check your connection and try again.', true);
+    } finally {
+      button.disabled = false;
     }
-    message('Check your email for the confirmation link, then sign in.');
-    setAuthMode('signin');
   });
 
   $('#reset-form').addEventListener('submit', async function (event) {

@@ -7,7 +7,7 @@ The storefront remains plain HTML, CSS and JavaScript. This branch adds a Supaba
 1. Use the Supabase project owned by TheKeeplily Co.
 2. In **Project Settings → API**, copy the project URL and the publishable (or legacy anon) key into `js/supabase-config.js`.
 3. Only the URL and publishable/anon key belong in browser code. Never put a service-role key, database password, payment secret, courier token, or other private credential in the repository or a browser-exposed environment variable.
-4. In **Authentication → URL Configuration**, set the site URL and allow the deployed `/account.html` URL as a redirect. Password recovery and signup confirmation use that page.
+4. In **Authentication → URL Configuration**, set the site URL and allow the deployed `/account.html` callback URLs, including `?mode=update` for password recovery and `?return=checkout.html` for signup started from checkout. If testing locally, allow the exact localhost account URL too; `file://` pages cannot authenticate.
 
 The publishable key is intentionally public; Row Level Security and narrowly granted RPCs are the security boundary.
 

@@ -319,7 +319,11 @@
     var lines = cart.getCart();
     if (!lines.length) { document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Your bag is empty</h1><p>Add something thoughtful before heading to checkout.</p><a class="button primary" href="shop.html">Shop little gifts</a></section>'; return; }
     var client = window.KEEPLILY_SUPABASE_CLIENT;
-    if (!client || !window.KEEPLILY_LIVE_CATALOGUE) {
+    if (window.location.protocol === 'file:') {
+      document.getElementById('main').innerHTML = '<section class="empty-page"><h1>Open checkout on the website</h1><p>Sign-in and secure checkout require the hosted HTTPS site or a local HTTP server allowed in Supabase Auth. Your cart remains saved in this browser.</p><a class="button primary" href="account.html?return=checkout.html">Sign in or create an account</a></section>';
+      return;
+    }
+    if (!client) {
       document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Checkout is not connected yet</h1><p>Your cart is still saved in this browser. Live ordering becomes available after the Supabase catalogue and order migration are configured.</p><a class="button primary" href="shop.html">Keep browsing</a></section>';
       return;
     }
@@ -331,6 +335,10 @@
       }
       if (!sessionResult.data.session) {
         document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Sign in to continue</h1><p>Your cart will stay saved while you sign in or create an account.</p><a class="button primary" href="account.html?return=checkout.html">Sign in or create an account</a></section>';
+        return;
+      }
+      if (!window.KEEPLILY_LIVE_CATALOGUE) {
+        document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Checkout is not connected yet</h1><p>Your cart is still saved in this browser. Live ordering becomes available after the Supabase catalogue and order migration are configured.</p><a class="button primary" href="shop.html">Keep browsing</a></section>';
         return;
       }
       var missingProduct = lines.some(function (line) {
@@ -636,6 +644,10 @@
   }
 
   function boot() {
+    if (document.body.dataset.page === 'account') {
+      init();
+      return;
+    }
     var ready = window.KEEPLILY_PRODUCTS_READY;
     if (ready && typeof ready.then === 'function') ready.then(function () {
       products = window.KEEPLILY_PRODUCTS || [];
