@@ -347,7 +347,52 @@
     window.addEventListener('storage', function () { updateCartCount(); renderCart(); refreshWishlistButtons(); });
   }
 
-  function init() {
+  async function syncLiveCatalogue() {
+    if (!window.supabase || !['home','shop','product'].includes(document.body.dataset.page || 'home')) return;
+    try {
+      var client = window.supabase.createClient('https://ucdnomryfppbpztdifwc.supabase.co','sb_publishable_vpppYo0jhiZceNamsEUaiQ_3AFlQJ7z');
+      var result = await client.from('products').select('id,category_id,sku,slug,name,short_description,description,price,sale_price,status,is_featured,is_bestseller,is_new_arrival,is_customisable,customisation_charge,variants,tags,materials,dimensions,care_instructions,product_images(storage_path,is_primary)').eq('status','active').order('created_at',{ascending:false});
+      if (result.error) throw result.error;
+      var categoryResult = await client.from('categories').select('id,name,slug,sort_order,is_active').eq('is_active',true).order('sort_order');
+      if (categoryResult.error) throw categoryResult.error;
+      var staticProducts = window.KEEPLILY_PRODUCTS || [];
+      var bySku = {};
+      staticProducts.forEach(function(p){ if(p.sku) bySku[p.sku]=p; });
+      products = result.data.map(function(row){
+        var base = bySku[row.sku] || {};
+        var variants = Array.isArray(row.variants) ? row.variants : [];
+        var variantPricing = {};
+        variants.forEach(function(v){ variantPricing[v.name || v.label || 'Standard'] = Number(v.price_adjustment || v.price || 0); });
+        var primary = (row.product_images || []).find(function(i){return i.is_primary && i.storage_path;}) || (row.product_images || []).find(function(i){return i.storage_path;});
+        var image = base.image || 'assets/keeplily-collection.png';
+        if (primary && primary.storage_path) image = client.storage.from('product-images').getPublicUrl(primary.storage_path).data.publicUrl;
+        return Object.assign({}, base, {
+          id:row.id, sku:row.sku, slug:row.slug, name:row.name, category:categoryResult.data.find(function(c){return c.id===row.category_id;})?.name || base.category || 'Gifts',
+          price:Number(row.price), salePrice:row.sale_price===null?null:Number(row.sale_price),
+          shortDescription:row.short_description || '', description:row.description || '',
+          image:image, imagePosition:base.imagePosition || 'center', additionalImages:[],
+          materials:row.materials || base.materials || '', dimensions:row.dimensions || base.dimensions || '',
+          variants:variants.map(function(v){return v.name || v.label || 'Standard';}),
+          variantPricing:variantPricing, customisable:!!row.is_customisable, customisationCharge:Number(row.customisation_charge || 0),
+          customisationNotes:base.customisationNotes || '', stock:null, availability:'available', madeToOrder:true,
+          preparationTime:base.preparationTime || 'Preparation time will be confirmed before dispatch.',
+          careInstructions:row.care_instructions || base.careInstructions || '',
+          badges:base.badges || [], tags:row.tags || base.tags || [], visible:true,
+          featured:!!row.is_featured, bestseller:!!row.is_bestseller, newArrival:!!row.is_new_arrival, createdAt:row.created_at
+        });
+      });
+      categories = categoryResult.data.map(function(c){return c.name;});
+      window.KEEPLILY_PRODUCTS = products;
+      window.KEEPLILY_CATEGORIES = categories;
+    } catch (error) {
+      console.warn('Live catalogue unavailable; using the bundled catalogue.', error);
+      products = window.KEEPLILY_PRODUCTS || [];
+      categories = window.KEEPLILY_CATEGORIES || [];
+    }
+  }
+
+  async function init() {
+    await syncLiveCatalogue();
     shell();
     bindGlobalEvents();
     var page = document.body.dataset.page || 'home';
