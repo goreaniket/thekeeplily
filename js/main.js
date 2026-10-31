@@ -341,7 +341,7 @@
         return;
       }
 
-      document.getElementById('main').innerHTML = '<section class="checkout-page"><div><a class="back-link" href="shop.html">← Continue shopping</a><p class="eyebrow">SECURE ORDER DETAILS</p><h1>Where should we send the little joy?</h1><form class="checkout-form" id="checkout-form"><fieldset><legend>Your details</legend><div class="form-grid"><label>Full name<input required name="name" maxlength="120" autocomplete="name"></label><label>Email<input required name="email" type="email" maxlength="254" autocomplete="email" readonly></label><label>Phone number<input required name="phone" maxlength="40" inputmode="tel" autocomplete="tel"></label></div></fieldset><fieldset><legend>Delivery address</legend><div class="form-grid"><label>House / Flat<input required name="address1" maxlength="240" autocomplete="address-line1"></label><label>Street / Area <small>Optional</small><input name="address2" maxlength="240" autocomplete="address-line2"></label><label>City<input required name="city" maxlength="120" autocomplete="address-level2"></label><label>State<input required name="state" maxlength="120" autocomplete="address-level1"></label><label>PIN code<input required name="pin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="postal-code"></label></div></fieldset><label>Order notes <small>Optional</small><textarea name="notes" maxlength="1000" placeholder="Anything we should know?"></textarea></label><div class="payment-notice"><span>✦</span><div><strong>Payment is not collected here</strong><p>This creates an unpaid order. Payment confirmation will only be recorded after a payment provider is integrated and verified.</p></div></div><button class="button primary full" type="submit">Create unpaid order ' + icon('arrow') + '</button><p class="form-message" data-form-message role="status" aria-live="polite"></p></form></div><aside class="order-summary" id="checkout-summary"></aside></section>';
+      document.getElementById('main').innerHTML = '<section class="checkout-page"><div><a class="back-link" href="shop.html">← Continue shopping</a><p class="eyebrow">SECURE ORDER DETAILS</p><h1>Where should we send the little joy?</h1><form class="checkout-form" id="checkout-form"><fieldset><legend>Your details</legend><div class="form-grid"><label>Full name<input required name="name" maxlength="120" autocomplete="name"></label><label>Email<input required name="email" type="email" maxlength="254" autocomplete="email" readonly></label><label>Phone number<input required name="phone" maxlength="40" inputmode="tel" autocomplete="tel"></label></div></fieldset><fieldset><legend>Delivery address</legend><div class="form-grid"><label>House / Flat<input required name="address1" maxlength="240" autocomplete="address-line1"></label><label>Street / Area <small>Optional</small><input name="address2" maxlength="240" autocomplete="address-line2"></label><label>City<input required name="city" maxlength="120" autocomplete="address-level2"></label><label>State<input required name="state" maxlength="120" autocomplete="address-level1"></label><label>PIN code<input required name="pin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="postal-code"></label></div></fieldset><label>Order notes <small>Optional</small><textarea name="notes" maxlength="1000" placeholder="Anything we should know?"></textarea></label><div class="payment-notice"><span>✦</span><div><strong>Secure payment with Razorpay</strong><p>You will be able to pay by the methods enabled on the secure Razorpay checkout. Your order is confirmed only after payment verification.</p></div></div><button class="button primary full" type="submit">Continue to payment ' + icon('arrow') + '</button><p class="form-message" data-form-message role="status" aria-live="polite"></p></form></div><aside class="order-summary" id="checkout-summary"></aside></section>';
       renderOrderSummary(document.getElementById('checkout-summary'));
 
       var form = document.getElementById('checkout-form');
@@ -447,13 +447,85 @@
           return;
         }
         var order = result.data;
+        setFormMessage(form, 'Preparing secure Razorpay checkout…');
+        var paymentOrder;
         try {
-          sessionStorage.removeItem(idempotencyStorageKey);
-        } catch (error) {
-          console.warn('Could not clear the completed order retry key.');
+          var createPaymentResult = await client.functions.invoke('create-razorpay-order', {
+            body: { order_id: order.id }
+          });
+          if (createPaymentResult.error) throw createPaymentResult.error;
+          paymentOrder = createPaymentResult.data;
+          if (!paymentOrder || !paymentOrder.razorpay_order_id || !paymentOrder.key_id) {
+            throw new Error('Payment session could not be prepared.');
+          }
+        } catch (paymentError) {
+          console.error('Razorpay order creation failed.', paymentError);
+          button.disabled = false;
+          button.innerHTML = 'Retry payment ' + icon('arrow');
+          setFormMessage(form, 'Your order is saved as payment pending, but Razorpay could not start. Please retry; do not place a duplicate order.', true);
+          return;
         }
-        cart.clear();
-        document.getElementById('main').innerHTML = '<section class="confirmation"><span class="success-icon">' + icon('check') + '</span><p class="eyebrow">ORDER CREATED · PAYMENT PENDING</p><h1>Thank you for your order ♡</h1><p>Your order number is <strong>' + escapeHTML(order.order_number) + '</strong>. No payment has been collected or marked as paid.</p><div class="confirmation-card"><span>Order total (shipping not included)</span><strong>' + window.formatINR(Number(order.grand_total)) + '</strong><span>Payment status</span><strong>Pending</strong></div><a class="button primary" href="account.html">View your account</a></section>';
+
+        if (typeof window.Razorpay !== 'function') {
+          button.disabled = false;
+          button.innerHTML = 'Retry payment ' + icon('arrow');
+          setFormMessage(form, 'Razorpay Checkout did not load. Refresh this page and retry payment.', true);
+          return;
+        }
+
+        var razorpay = new window.Razorpay({
+          key: paymentOrder.key_id,
+          amount: paymentOrder.amount,
+          currency: paymentOrder.currency,
+          name: 'TheKeeplily Co.',
+          description: 'Order ' + paymentOrder.order_number,
+          order_id: paymentOrder.razorpay_order_id,
+          prefill: {
+            name: shippingAddress.full_name,
+            email: currentUser.email || '',
+            contact: shippingAddress.phone
+          },
+          notes: { store_order_id: order.id, order_number: paymentOrder.order_number },
+          theme: { color: '#9b6b55' },
+          handler: async function (paymentResponse) {
+            button.disabled = true;
+            setFormMessage(form, 'Verifying your payment securely…');
+            try {
+              var verifyResult = await client.functions.invoke('verify-razorpay-payment', {
+                body: {
+                  order_id: order.id,
+                  razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                  razorpay_order_id: paymentResponse.razorpay_order_id,
+                  razorpay_signature: paymentResponse.razorpay_signature
+                }
+              });
+              if (verifyResult.error || !verifyResult.data || verifyResult.data.verified !== true) {
+                throw new Error((verifyResult.data && verifyResult.data.error) || 'Payment verification is pending.');
+              }
+              try { sessionStorage.removeItem(idempotencyStorageKey); } catch (error) {}
+              cart.clear();
+              document.getElementById('main').innerHTML = '<section class="confirmation"><span class="success-icon">' + icon('check') + '</span><p class="eyebrow">PAYMENT VERIFIED</p><h1>Your order is confirmed ♡</h1><p>Payment for order <strong>' + escapeHTML(order.order_number) + '</strong> has been verified successfully.</p><div class="confirmation-card"><span>Order total</span><strong>' + window.formatINR(Number(order.grand_total)) + '</strong><span>Payment status</span><strong>Paid</strong></div><a class="button primary" href="account.html">View your account</a></section>';
+            } catch (verifyError) {
+              console.error('Payment verification failed.', verifyError);
+              button.disabled = false;
+              button.innerHTML = 'Retry payment verification ' + icon('arrow');
+              setFormMessage(form, 'Payment was submitted, but verification is not complete. Do not pay again yet. Contact support with payment ID: ' + paymentResponse.razorpay_payment_id, true);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              button.disabled = false;
+              button.innerHTML = 'Retry payment ' + icon('arrow');
+              setFormMessage(form, 'Checkout closed. Your order remains saved with payment pending. You can retry from this page.', true);
+            }
+          }
+        });
+        razorpay.on('payment.failed', function (failure) {
+          button.disabled = false;
+          button.innerHTML = 'Retry payment ' + icon('arrow');
+          setFormMessage(form, (failure.error && failure.error.description) || 'Payment was not completed. Your order remains pending.', true);
+        });
+        razorpay.open();
       });
     }).catch(function (error) {
       console.warn('Checkout session lookup failed.', error);
