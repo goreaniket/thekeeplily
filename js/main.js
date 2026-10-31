@@ -48,12 +48,12 @@
       '<header class="site-header">' +
         '<button class="mobile-menu-button" type="button" data-menu-open aria-label="Open menu">' + icon('menu') + '</button>' +
         '<a class="wordmark" href="index.html" aria-label="TheKeeplily Co. home"><span class="wordmark-flower">✿</span><span>TheKeeplily Co.</span></a>' +
-        '<nav class="desktop-nav" aria-label="Primary navigation"><a href="index.html">Home</a><a href="shop.html">Shop</a><a href="shop.html#filters">Categories</a><a href="custom-gifts.html">Custom Gifts</a><a href="about.html">About</a><a href="contact.html">Contact</a><a href="auth.html">My Account</a></nav>' +
+        '<nav class="desktop-nav" aria-label="Primary navigation"><a href="index.html">Home</a><a href="shop.html">Shop</a><a href="shop.html#filters">Categories</a><a href="custom-gifts.html">Custom Gifts</a><a href="about.html">About</a><a href="owner.html">Owner</a><a href="contact.html">Contact</a><a href="auth.html">My Account</a></nav>' +
         '<div class="header-actions"><form class="header-search" id="header-search"><label class="sr-only" for="header-search-input">Search products</label>' + icon('search') + '<input id="header-search-input" name="q" placeholder="Search" autocomplete="off"></form><a class="icon-button heart-link" href="shop.html?wishlist=1" aria-label="View wishlist">♡</a><button class="icon-button bag-button" type="button" data-cart-open aria-label="Open shopping bag">' + icon('bag') + '<span data-cart-count>0</span></button></div>' +
       '</header>';
     if (footer) footer.innerHTML =
       '<footer><div class="footer-brand"><a class="wordmark" href="index.html"><span class="wordmark-flower">✿</span>TheKeeplily Co.</a><p>Little gifts, big feelings. ♡</p><p>Handmade in Vapi, Gujarat, India.</p></div>' +
-      '<div><h3>Explore</h3><a href="shop.html">Shop</a><a href="custom-gifts.html">Custom Gifts</a><a href="about.html">About</a><a href="contact.html">Contact</a></div>' +
+      '<div><h3>Explore</h3><a href="shop.html">Shop</a><a href="custom-gifts.html">Custom Gifts</a><a href="about.html">About</a><a href="owner.html">Owner</a><a href="contact.html">Contact</a></div>' +
       '<div><h3>Helpful</h3><a href="shipping.html">Shipping</a><a href="returns.html">Returns</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="copyright.html">Copyright</a></div>' +
       '<div><h3>Keep in touch</h3><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">@the_keeplily.co</a><a href="mailto:luniyasejal50@gmail.com">luniyasejal50@gmail.com</a></div>' +
       '<p class="copyright">© 2026 TheKeeplily Co. · Made with a little love ♡</p></footer>';
@@ -188,6 +188,11 @@
     document.getElementById('main').innerHTML = '<section class="page-hero"><p class="eyebrow">A LITTLE NOTE FROM KEEPLILY</p><h1>Made slowly. Gifted warmly. Kept closely.</h1><p>TheKeeplily Co. creates handmade gifts with love and care, made to make special moments more memorable.</p></section><section class="editorial-about"><div><img src="assets/keeplily-collection.png" alt="Handmade pieces from TheKeeplily Co."></div><article><span class="mini-script">our story is still unfolding</span><h2>Small pieces, real feeling.</h2><p>We believe a gift doesn’t need to be grand to feel meaningful. It can be a tiny charm, a warm candle or a handwritten card—made thoughtfully and chosen with someone in mind.</p><blockquote>“Handmade with love. Made to be kept. ♡”</blockquote><div class="story-placeholders"><details><summary>The meaning behind Keeplily</summary><p>This space is ready for Sejal’s own words.</p></details><details><summary>Meet the founder</summary><p>Founder story to be added when provided by Sejal.</p></details><details><summary>Our making process</summary><p>Process notes and studio photos can be added here later.</p></details></div></article></section>';
   }
 
+
+  function renderOwner() {
+    document.getElementById('main').innerHTML = '<section class="page-hero"><p class="eyebrow">THE PERSON BEHIND THE KEEPLILY CO.</p><h1>Meet the Owner</h1><p>A small business built around thoughtful gifting, handmade details and the feeling behind every little keepsake.</p></section><section class="editorial-about"><div><img src="assets/keeplily-collection.png" alt="A selection of handmade pieces from TheKeeplily Co."></div><article><span class="mini-script">the owner & founder</span><h2>Sejal Luniya</h2><p>Sejal Luniya is the owner of TheKeeplily Co., a gifting brand based in Vapi, Gujarat, India.</p><p>TheKeeplily Co. brings together carefully considered gifts and personal touches for moments worth remembering. The focus is on making each order feel thoughtful, personal and special.</p><p>This page is the official owner information page. A personal founder note and portrait can be added after Sejal approves the final wording and photograph.</p><p><a class="text-link" href="contact.html">Contact TheKeeplily Co. ' + icon('arrow') + '</a></p></article></section>';
+  }
+
   function renderContact() {
     document.getElementById('main').innerHTML = '<section class="page-hero"><p class="eyebrow">SAY A LITTLE HELLO</p><h1>We’d love to hear from you. ♡</h1><p>Questions, gifting ideas or a note about an order—send it our way.</p></section><section class="contact-layout"><div class="contact-details"><h2>Come say hello</h2><a href="mailto:luniyasejal50@gmail.com">' + icon('mail') + '<span><small>Email</small>luniyasejal50@gmail.com</span></a><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">' + icon('camera') + '<span><small>Instagram</small>@the_keeplily.co</span></a><div><span class="place-icon">♡</span><span><small>Based in</small>Vapi, Gujarat, India</span></div></div><form class="contact-form" id="contact-form"><p class="form-preview-note">Preview only: this form validates locally and does not send email.</p><label>Name<input name="name" required autocomplete="name"></label><label>Email<input name="email" required type="email" autocomplete="email"></label><label>Phone <small>Optional</small><input name="phone" inputmode="tel" autocomplete="tel"></label><label>Subject<input name="subject" required></label><label>Message<textarea name="message" required></textarea></label><button class="button primary" type="submit">Save preview message ' + icon('arrow') + '</button></form></section>';
     document.getElementById('contact-form').addEventListener('submit', function (event) { event.preventDefault(); event.currentTarget.outerHTML = '<div class="form-success"><span class="success-icon">' + icon('check') + '</span><h2>Thanks for reaching out ♡</h2><p>Live messaging will be enabled at launch.</p></div>'; });
@@ -298,12 +303,13 @@
     shell();
     bindGlobalEvents();
     var page = document.body.dataset.page || 'home';
-    var titles = { home: 'TheKeeplily Co. | Little gifts, big feelings.', shop: 'Shop | TheKeeplily Co.', about: 'About | TheKeeplily Co.', contact: 'Contact | TheKeeplily Co.', custom: 'Custom Gifts | TheKeeplily Co.', checkout: 'Checkout Preview | TheKeeplily Co.', shipping: 'Shipping Policy | TheKeeplily Co.', returns: 'Returns & Refunds | TheKeeplily Co.', privacy: 'Privacy Policy | TheKeeplily Co.', terms: 'Terms & Conditions | TheKeeplily Co.', 'not-found': 'Page not found | TheKeeplily Co.' };
+    var titles = { home: 'TheKeeplily Co. | Little gifts, big feelings.', shop: 'Shop | TheKeeplily Co.', about: 'About | TheKeeplily Co.', owner: 'Owner | TheKeeplily Co.', contact: 'Contact | TheKeeplily Co.', custom: 'Custom Gifts | TheKeeplily Co.', checkout: 'Checkout Preview | TheKeeplily Co.', shipping: 'Shipping Policy | TheKeeplily Co.', returns: 'Returns & Refunds | TheKeeplily Co.', privacy: 'Privacy Policy | TheKeeplily Co.', terms: 'Terms & Conditions | TheKeeplily Co.', 'not-found': 'Page not found | TheKeeplily Co.' };
     if (titles[page]) document.title = titles[page];
     if (page === 'home') renderHome();
     else if (page === 'shop') renderShop();
     else if (page === 'product') renderProduct();
     else if (page === 'about') renderAbout();
+    else if (page === 'owner') renderOwner();
     else if (page === 'contact') renderContact();
     else if (page === 'custom') renderCustomGifts();
     else if (page === 'checkout') renderCheckout();
