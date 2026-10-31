@@ -25,6 +25,7 @@
       <section id="account-auth" class="account-card">
         <div class="account-tabs" role="tablist" aria-label="Account access">
           <button type="button" class="active" data-auth-mode="signin">Sign in</button>
+          <button type="button" data-auth-mode="otp">Email code</button>
           <button type="button" data-auth-mode="signup">Create account</button>
           <button type="button" data-auth-mode="reset">Reset password</button>
         </div>
@@ -33,6 +34,13 @@
           <label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label>
           <label>Password<input name="password" type="password" autocomplete="current-password" required minlength="8"></label>
           <button class="button primary" type="submit">Sign in</button>
+        </form>
+        <form id="otp-form" class="account-form" hidden>
+          <h2>Sign in with an email code</h2>
+          <label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label>
+          <button class="button secondary" type="button" id="send-otp-button">Send one-time code</button>
+          <label id="otp-code-label" hidden>Email code<input name="token" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,8}" minlength="6" maxlength="8"></label>
+          <button class="button primary" type="submit" id="verify-otp-button" hidden>Verify code and sign in</button>
         </form>
         <form id="signup-form" class="account-form" hidden>
           <h2>Make an account</h2>
@@ -54,7 +62,7 @@
       </section>
 
       <section id="account-dashboard" hidden>
-        <div class="account-dashboard-heading"><div><p class="eyebrow">A LITTLE ABOUT YOU</p><h2>Your details</h2></div><button class="button secondary" id="account-signout" type="button">Sign out</button></div>
+        <div class="account-dashboard-heading"><div><p class="eyebrow">A LITTLE ABOUT YOU</p><h2>Your details</h2><a id="admin-dashboard-link" href="admin/index.html" hidden>Open store admin</a></div><button class="button secondary" id="account-signout" type="button">Sign out</button></div>
         <form id="profile-form" class="account-card account-form">
           <label>Full name<input name="full_name" autocomplete="name" maxlength="120" required></label>
           <label>Phone<input name="phone" autocomplete="tel" inputmode="tel" maxlength="40"></label>

@@ -36,6 +36,19 @@
     return product.salePrice === null || product.salePrice === undefined ? product.price : product.salePrice;
   }
 
+  function productImageMarkup(product, alt, className, id) {
+    var idAttribute = id ? ' id="' + escapeHTML(id) + '"' : '';
+    if (!product.image) {
+      var dimensions = className === 'cart-image-placeholder'
+        ? 'width:82px;height:98px;border-radius:12px;'
+        : className === 'summary-image-placeholder'
+          ? 'width:55px;height:65px;border-radius:9px;'
+          : 'width:100%;height:100%;';
+      return '<span class="product-image-placeholder" style="display:grid;place-items:center;background:linear-gradient(145deg,#f8e9e5,#f1dcd8);color:#78615c;font:italic 14px Georgia,serif;text-align:center;padding:12px;' + dimensions + '"' + idAttribute + (alt ? ' role="img" aria-label="' + escapeHTML(alt) + '"' : ' aria-hidden="true"') + '>Photo coming soon</span>';
+    }
+    return '<img' + idAttribute + ' src="' + escapeHTML(product.image) + '" alt="' + escapeHTML(alt) + '" style="object-position:' + escapeHTML(product.imagePosition || 'center') + '" loading="lazy">';
+  }
+
   function icon(name) {
     var paths = {
       menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
@@ -68,7 +81,7 @@
     if (footer) footer.innerHTML =
       '<footer><div class="footer-brand"><a class="wordmark" href="index.html"><span class="wordmark-flower">✿</span>TheKeeplily Co.</a><p>Little gifts, big feelings. ♡</p><p>Handmade in Vapi, Gujarat, India.</p><a href="account.html">My account</a></div>' +
       '<div><h3>Explore</h3><a href="shop.html">Shop</a><a href="custom-gifts.html">Custom Gifts</a><a href="about.html">About</a><a href="contact.html">Contact</a></div>' +
-      '<div><h3>Helpful</h3><a href="shipping.html">Shipping</a><a href="returns.html">Returns</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div>' +
+      '<div><h3>Helpful</h3><a href="shipping.html">Shipping</a><a href="returns.html">Returns</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="copyright.html">Copyright</a></div>' +
       '<div><h3>Keep in touch</h3><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">@the_keeplily.co</a><a href="mailto:thekeeplilyco26@gmail.com">thekeeplilyco26@gmail.com</a></div>' +
       '<p class="copyright">© 2026 TheKeeplily Co. · Made with a little love ♡</p></footer>';
 
@@ -85,14 +98,18 @@
 
   function productCard(product) {
     var wished = cart.getWishlist().indexOf(product.id) >= 0;
-    return '<article class="product-card" data-product-card="' + escapeHTML(product.id) + '"><div class="product-image-wrap"><a href="product.html?product=' + encodeURIComponent(product.slug) + '"><img src="' + product.image + '" alt="' + escapeHTML(product.name) + '" style="object-position:' + escapeHTML(product.imagePosition) + '" loading="lazy"></a><div class="badge-row">' + product.badges.slice(0, 2).map(function (badge) { return '<span>' + escapeHTML(badge) + '</span>'; }).join('') + '</div><button class="wish-button' + (wished ? ' active' : '') + '" type="button" data-wish="' + escapeHTML(product.id) + '" aria-label="' + (wished ? 'Remove from' : 'Add to') + ' wishlist">' + (wished ? '♥' : '♡') + '</button></div><div class="product-info"><p>' + escapeHTML(product.category) + '</p><a href="product.html?product=' + encodeURIComponent(product.slug) + '"><h3>' + escapeHTML(product.name) + '</h3></a><div class="price-row"><strong>' + window.formatINR(productPrice(product)) + '</strong>' + (product.salePrice ? '<del>' + window.formatINR(product.price) + '</del>' : '') + '</div><div class="card-actions"><button type="button" data-add="' + escapeHTML(product.id) + '">' + (product.variants.length > 1 ? 'Quick add' : 'Add to bag') + ' ' + icon('bag') + '</button><a href="product.html?product=' + encodeURIComponent(product.slug) + '" aria-label="View ' + escapeHTML(product.name) + '">' + icon('arrow') + '</a></div></div></article>';
+    return '<article class="product-card" data-product-card="' + escapeHTML(product.id) + '"><div class="product-image-wrap"><a href="product.html?product=' + encodeURIComponent(product.slug) + '">' + productImageMarkup(product, product.name, '', '') + '</a><div class="badge-row">' + product.badges.slice(0, 2).map(function (badge) { return '<span>' + escapeHTML(badge) + '</span>'; }).join('') + '</div><button class="wish-button' + (wished ? ' active' : '') + '" type="button" data-wish="' + escapeHTML(product.id) + '" aria-label="' + (wished ? 'Remove from' : 'Add to') + ' wishlist">' + (wished ? '♥' : '♡') + '</button></div><div class="product-info"><p>' + escapeHTML(product.category) + '</p><a href="product.html?product=' + encodeURIComponent(product.slug) + '"><h3>' + escapeHTML(product.name) + '</h3></a><div class="price-row"><strong>' + window.formatINR(productPrice(product)) + '</strong>' + (product.salePrice ? '<del>' + window.formatINR(product.price) + '</del>' : '') + '</div><div class="card-actions"><button type="button" data-add="' + escapeHTML(product.id) + '">' + (product.variants.length > 1 ? 'Quick add' : 'Add to bag') + ' ' + icon('bag') + '</button><a href="product.html?product=' + encodeURIComponent(product.slug) + '" aria-label="View ' + escapeHTML(product.name) + '">' + icon('arrow') + '</a></div></div></article>';
   }
 
   function renderProductGrid(target, list) {
     if (!target) return;
     target.innerHTML = list.length
       ? list.map(productCard).join('')
-      : '<div class="empty-state"><span class="empty-icon">✦</span><h3>No little finds here yet</h3><p>Try another category or clear the filters.</p><a href="shop.html" class="button secondary">View all gifts</a></div>';
+      : window.KEEPLILY_CATALOGUE_ERROR
+        ? '<div class="empty-state"><span class="empty-icon">✦</span><h3>The shop is temporarily unavailable</h3><p>Please try again shortly.</p><a href="shop.html" class="button secondary">Try again</a></div>'
+        : window.KEEPLILY_LIVE_CATALOGUE && products.length === 0
+          ? '<div class="empty-state"><span class="empty-icon">✦</span><h3>Our live collection is being prepared</h3><p>Please check back soon for available products.</p></div>'
+        : '<div class="empty-state"><span class="empty-icon">✦</span><h3>No little finds here yet</h3><p>Try another category or clear the filters.</p><a href="shop.html" class="button secondary">View all gifts</a></div>';
   }
 
   function renderHome() {
@@ -191,18 +208,47 @@
   function renderProduct() {
     var slug = new URLSearchParams(window.location.search).get('product');
     var product = products.find(function (item) { return item.slug === slug; });
-    if (!product) { renderNotFound(); return; }
+    if (!product) {
+      if (window.KEEPLILY_CATALOGUE_ERROR) {
+        document.title = 'Shop temporarily unavailable | TheKeeplily Co.';
+        document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">✦</span><h1>The shop is temporarily unavailable</h1><p>Please try again shortly.</p><a class="button primary" href="shop.html">Try again</a></section>';
+        return;
+      }
+      if (window.KEEPLILY_LIVE_CATALOGUE) {
+        document.title = 'Product unavailable | TheKeeplily Co.';
+        document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">✦</span><h1>This product is not available right now</h1><p>Browse the live collection to see what is currently available.</p><a class="button primary" href="shop.html">Browse the shop</a></section>';
+        return;
+      }
+      renderNotFound();
+      return;
+    }
+    var galleryImages = [product.image].concat(product.additionalImages || []).filter(Boolean);
+    var galleryMarkup = galleryImages.length
+      ? '<div class="product-gallery"><div class="main-product-image">' + productImageMarkup({ image: galleryImages[0], imagePosition: product.imagePosition }, product.name, '', 'main-product-image') + '<span class="zoom-note">' + icon('search') + ' A closer look</span></div><div class="thumb-row">' + galleryImages.map(function (image, index) { return '<button class="' + (index === 0 ? 'active' : '') + '" type="button" data-gallery-image="' + index + '" aria-label="Show product image ' + (index + 1) + '">' + productImageMarkup({ image: image, imagePosition: product.imagePosition }, product.name + ', image ' + (index + 1), '', '') + '</button>'; }).join('') + '</div></div>'
+      : '<div class="product-gallery"><div class="main-product-image">' + productImageMarkup(product, 'Product photo unavailable for ' + product.name, 'product-image-placeholder', '') + '</div></div>';
     document.title = product.name + ' | TheKeeplily Co.';
     var state = { variant: product.variants[0], quantity: 1 };
     document.getElementById('main').innerHTML =
       '<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Home</a><span>/</span><a href="shop.html">Shop</a><span>/</span><span>' + escapeHTML(product.name) + '</span></nav>' +
-      '<section class="product-page"><div class="product-gallery"><div class="main-product-image"><img src="' + product.image + '" alt="' + escapeHTML(product.name) + '" style="object-position:' + escapeHTML(product.imagePosition) + '"><span class="zoom-note">' + icon('search') + ' A closer look</span></div><div class="thumb-row"><button class="active" type="button"><img src="' + product.image + '" alt="' + escapeHTML(product.name) + ', front view" style="object-position:' + escapeHTML(product.imagePosition) + '"></button><button type="button"><img src="' + product.image + '" alt="' + escapeHTML(product.name) + ', styled view" style="object-position:68% 50%"></button></div></div>' +
+      '<section class="product-page">' + galleryMarkup +
       '<div class="product-panel"><p class="eyebrow">' + escapeHTML(product.category.toUpperCase()) + '</p><div class="product-title-row"><h1>' + escapeHTML(product.name) + '</h1><button class="wish-button' + (cart.getWishlist().indexOf(product.id) >= 0 ? ' active' : '') + '" type="button" data-wish="' + product.id + '" aria-label="Toggle wishlist">' + (cart.getWishlist().indexOf(product.id) >= 0 ? '♥' : '♡') + '</button></div><div class="detail-price"><strong id="product-price"></strong>' + (product.madeToOrder ? '<span>Made to order</span>' : '<span>Available</span>') + '</div><p class="detail-lead">' + escapeHTML(product.shortDescription) + '</p><div class="stock-note">' + (product.stock === null ? 'Availability confirmed with your order' : product.stock + ' in stock') + '</div>' +
       '<div class="choice-block"><span>Choose an option</span><div class="variant-row">' + product.variants.map(function (variant, index) { return '<button class="' + (index === 0 ? 'active' : '') + '" type="button" data-variant="' + escapeHTML(variant) + '">' + escapeHTML(variant) + (product.variantPricing[variant] ? ' +' + window.formatINR(product.variantPricing[variant]) : '') + '</button>'; }).join('') + '</div></div>' +
       (product.customisable ? '<div class="personalise-box"><label class="check-line"><input id="customisation-toggle" type="checkbox"><span><strong>Make it personal</strong>' + (product.customisationCharge ? ' +' + window.formatINR(product.customisationCharge) : ' Included') + '</span></label><label id="personalisation-field" hidden>Personalisation details<textarea id="personalisation" maxlength="180" placeholder="' + escapeHTML(product.customisationNotes) + '"></textarea><small><span id="personalisation-count">0</span>/180 characters</small></label></div>' : '') +
       '<label class="gift-message">Optional gift message<textarea id="gift-message" placeholder="A little note for someone special…" maxlength="200"></textarea></label><div class="purchase-row"><div class="quantity"><button id="product-decrease" type="button" aria-label="Decrease quantity">' + icon('minus') + '</button><span id="product-quantity">1</span><button id="product-increase" type="button" aria-label="Increase quantity">' + icon('plus') + '</button></div><button class="button primary grow" id="product-add" type="button">Add to bag ' + icon('bag') + '</button></div><button class="button secondary full" id="buy-now" type="button">Buy now</button><div class="micro-trust"><span>' + icon('package') + 'Carefully packed</span><span>♡<br>Made with love</span><span>✦<br>Preview mode</span></div></div></section>' +
       '<section class="detail-sections"><details open><summary>Description</summary><p>' + escapeHTML(product.description) + '</p></details><details><summary>Details</summary><p><strong>Materials:</strong> ' + escapeHTML(product.materials) + '<br><strong>Dimensions:</strong> ' + escapeHTML(product.dimensions) + '<br><strong>Colours:</strong> ' + escapeHTML(product.colours.join(', ')) + '<br><strong>Stock:</strong> ' + (product.stock === null ? 'Made to order / confirmed before dispatch' : product.stock) + '<br><strong>Preparation:</strong> ' + escapeHTML(product.preparationTime) + '</p></details><details><summary>Care Instructions</summary><p>' + escapeHTML(product.careInstructions) + '</p></details><details><summary>Shipping information</summary><p>Shipping charges and the estimated delivery timeline are shown before an order is confirmed.</p></details></section>' +
       '<section class="section products-section">' + sectionHeading('MORE TO KEEP', 'You May Also Like ♡') + '<div class="product-grid" id="related-products"></div></section>';
+
+    document.querySelectorAll('[data-gallery-image]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var imageIndex = Number(button.dataset.galleryImage);
+        var image = galleryImages[imageIndex];
+        if (!image) return;
+        document.getElementById('main-product-image').src = image;
+        document.querySelectorAll('[data-gallery-image]').forEach(function (thumbnail) {
+          thumbnail.classList.toggle('active', thumbnail === button);
+        });
+      });
+    });
 
     function currentPrice() {
       return productPrice(product) + (product.variantPricing[state.variant] || 0) + ((document.getElementById('customisation-toggle') || {}).checked ? product.customisationCharge : 0);
@@ -228,6 +274,17 @@
 
   function renderContact() {
     document.getElementById('main').innerHTML = '<section class="page-hero"><p class="eyebrow">SAY A LITTLE HELLO</p><h1>We’d love to hear from you. ♡</h1><p>Questions, gifting ideas or a note about an order—send it our way.</p></section><section class="contact-layout"><div class="contact-details"><h2>Come say hello</h2><a href="mailto:thekeeplilyco26@gmail.com">' + icon('mail') + '<span><small>Email</small>thekeeplilyco26@gmail.com</span></a><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">' + icon('camera') + '<span><small>Instagram</small>@the_keeplily.co</span></a><div><span class="place-icon">♡</span><span><small>Based in</small>Vapi, Gujarat, India</span></div></div><form class="contact-form" id="contact-form"><label>Name<input name="name" required maxlength="120" autocomplete="name"></label><label>Email<input name="email" required type="email" maxlength="254" autocomplete="email"></label><label>Phone <small>Optional</small><input name="phone" inputmode="tel" maxlength="40" autocomplete="tel"></label><label>Subject<input name="subject" required maxlength="180"></label><label>Message<textarea name="message" required maxlength="5000"></textarea></label><label class="form-trap" aria-hidden="true">Leave this empty<input name="website" type="text" tabindex="-1" autocomplete="off"></label><button class="button primary" type="submit">Send message ' + icon('arrow') + '</button><p class="form-message" data-form-message role="status" aria-live="polite"></p></form></section>';
+    var contactSubmissionKey = null;
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      contactSubmissionKey = window.crypto.randomUUID();
+    } else if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+      var randomBytes = window.crypto.getRandomValues(new Uint8Array(16));
+      randomBytes[6] = (randomBytes[6] & 15) | 64;
+      randomBytes[8] = (randomBytes[8] & 63) | 128;
+      contactSubmissionKey = Array.from(randomBytes).map(function (value) {
+        return value.toString(16).padStart(2, '0');
+      }).join('').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+    }
     document.getElementById('contact-form').addEventListener('submit', async function (event) {
       event.preventDefault();
       var form = event.currentTarget;
@@ -235,6 +292,7 @@
       var button = form.querySelector('button[type="submit"]');
       var client = window.KEEPLILY_SUPABASE_CLIENT;
       if (!client) { setFormMessage(form, 'Messaging is temporarily unavailable. Please try again later.', true); return; }
+      if (!contactSubmissionKey) { setFormMessage(form, 'Secure message submission is unavailable in this browser.', true); return; }
       button.disabled = true;
       button.textContent = 'Sending…';
       setFormMessage(form, 'Sending…');
@@ -246,18 +304,19 @@
           p_phone: String(data.get('phone') || '').trim() || null,
           p_subject: String(data.get('subject') || '').trim(),
           p_message: String(data.get('message') || '').trim(),
-          p_website: String(data.get('website') || '')
+          p_website: String(data.get('website') || ''),
+          p_submission_key: contactSubmissionKey
         });
       } catch (error) {
         button.disabled = false;
         button.innerHTML = 'Send message ' + icon('arrow');
-        setFormMessage(form, 'Your message could not be sent. Please try again.', true);
+        setFormMessage(form, 'Your message could not be sent: ' + (error && error.message ? error.message : 'Please try again.'), true);
         return;
       }
-      if (result.error) {
+      if (result.error || !result.data) {
         button.disabled = false;
         button.innerHTML = 'Send message ' + icon('arrow');
-        setFormMessage(form, 'Your message could not be sent. Please check the fields and try again.', true);
+        setFormMessage(form, result.error ? 'Your message could not be sent: ' + result.error.message : 'The message could not be confirmed as saved. Please try again.', true);
         return;
       }
       form.outerHTML = '<div class="form-success"><span class="success-icon">' + icon('check') + '</span><h2>Thanks for reaching out ♡</h2><p>Your message has been received. We’ll get back to you soon.</p></div>';
@@ -266,13 +325,52 @@
 
   function renderCustomGifts() {
     document.getElementById('main').innerHTML = '<section class="page-hero custom-page-hero"><p class="eyebrow">FROM YOUR HEART, MADE BY OUR HANDS</p><h1>Made Especially for You ♡</h1><p>Have something special in mind? Tell us your idea and let’s turn it into a little keepsake.</p></section><section class="custom-form-layout"><div class="process-card"><p class="eyebrow">HOW IT WORKS</p><h2>From idea to keepsake</h2><ol><li><span>1</span><div><strong>Share your idea</strong><p>Tell us the moment, mood and details.</p></div></li><li><span>2</span><div><strong>Review together</strong><p>At launch, we’ll confirm feasibility, timeline and quote.</p></div></li><li><span>3</span><div><strong>Approve the plan</strong><p>Nothing is charged automatically.</p></div></li></ol></div><form class="custom-form" id="custom-form"><div class="form-grid"><label>Name<input name="name" required maxlength="120" autocomplete="name"></label><label>Email<input name="email" required type="email" maxlength="254" autocomplete="email"></label><label>Phone<input name="phone" required inputmode="tel" maxlength="40" autocomplete="tel"></label><label>Occasion<select name="occasion" required><option value="">Choose an occasion</option><option>Birthday</option><option>Friendship</option><option>Anniversary</option><option>Festive</option><option>Just because</option></select></label><label>Product type<select name="productType" required><option value="">What would you like?</option>' + categories.concat(['Gift Set','Something else']).map(function (name) { return '<option>' + escapeHTML(name) + '</option>'; }).join('') + '</select></label><label>Budget<input name="budget" required inputmode="numeric" maxlength="80" placeholder="₹"></label><label>Required date<input name="requiredDate" type="date"></label><label>Quantity<input name="quantity" type="number" min="1" max="100" value="1" required></label></div><label>Colours / theme<input name="theme" maxlength="500" placeholder="Blush pink, daisies, warm neutrals…"></label><label>Customisation details<textarea name="details" required maxlength="5000" placeholder="Tell us the idea, names, initials and the feeling behind the gift…"></textarea></label><label>Gift message<textarea name="giftMessage" maxlength="1000" placeholder="Optional message for the recipient"></textarea></label><label>Notes<textarea name="notes" maxlength="2000"></textarea></label><label class="form-trap" aria-hidden="true">Leave this empty<input name="website" type="text" tabindex="-1" autocomplete="off"></label><button class="button primary full" type="submit">Send custom request ' + icon('arrow') + '</button><p class="form-message" data-form-message role="status" aria-live="polite"></p></form></section>';
-    document.getElementById('custom-form').addEventListener('submit', async function (event) {
+    var customForm = document.getElementById('custom-form');
+    var referenceLabel = document.createElement('label');
+    referenceLabel.textContent = 'Reference images (optional)';
+    var referenceInput = document.createElement('input');
+    referenceInput.name = 'reference_images';
+    referenceInput.type = 'file';
+    referenceInput.accept = 'image/jpeg,image/png,image/webp';
+    referenceInput.multiple = true;
+    var referenceHelp = document.createElement('small');
+    referenceHelp.textContent = 'Up to 3 JPG, PNG, or WebP images, 5 MB each. Sign in to attach private reference images; requests without images can still be submitted.';
+    referenceLabel.append(referenceInput, referenceHelp);
+    customForm.insertBefore(referenceLabel, customForm.querySelector('.form-trap'));
+    customForm.addEventListener('submit', async function (event) {
       event.preventDefault();
       var form = event.currentTarget;
       var data = new FormData(form);
       var button = form.querySelector('button[type="submit"]');
       var client = window.KEEPLILY_SUPABASE_CLIENT;
       if (!client) { setFormMessage(form, 'Custom requests are temporarily unavailable. Please try again later.', true); return; }
+      var referenceFiles = Array.from(referenceInput.files || []);
+      if (referenceFiles.length > 3 || referenceFiles.some(function (file) {
+        return !/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 5 * 1024 * 1024 || file.size === 0;
+      })) {
+        setFormMessage(form, 'Choose at most 3 non-empty JPG, PNG, or WebP images no larger than 5 MB each.', true);
+        return;
+      }
+      var authenticatedUser = null;
+      if (referenceFiles.length) {
+        var authResult;
+        try {
+          authResult = await client.auth.getUser();
+        } catch (error) {
+          setFormMessage(form, 'Your sign-in could not be verified: ' + (error && error.message ? error.message : 'Please try again.'), true);
+          return;
+        }
+        if (authResult.error && authResult.error.name !== 'AuthSessionMissingError' &&
+            authResult.error.code !== 'session_not_found') {
+          setFormMessage(form, 'Your sign-in could not be verified: ' + authResult.error.message, true);
+          return;
+        }
+        authenticatedUser = authResult.data && authResult.data.user || null;
+        if (!authenticatedUser) {
+          setFormMessage(form, 'Sign in to your account before attaching private reference images. You can submit this request without images.', true);
+          return;
+        }
+      }
       var budgetText = String(data.get('budget') || '').replace(/,/g, '');
       var budgetNumbers = budgetText.match(/\d+(?:\.\d+)?/g) || [];
       var description = [
@@ -282,9 +380,11 @@
       button.disabled = true;
       button.textContent = 'Sending request…';
       setFormMessage(form, 'Sending your request…');
-      var result;
+      var requestSaved = false;
+      var requestId = null;
+      var uploadedPaths = [];
       try {
-        result = await client.rpc('submit_custom_gift_request', {
+        var result = await client.rpc('submit_custom_gift_request', {
           p_name: String(data.get('name') || '').trim(),
           p_email: String(data.get('email') || '').trim().toLowerCase(),
           p_phone: String(data.get('phone') || '').trim(),
@@ -299,16 +399,43 @@
           p_gift_message: String(data.get('giftMessage') || '').trim() || null,
           p_website: String(data.get('website') || '')
         });
+        if (result.error) throw result.error;
+        if (typeof result.data !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(result.data)) {
+          throw new Error('Supabase did not return a saved request ID.');
+        }
+        requestId = result.data;
+        requestSaved = true;
+        if (referenceFiles.length) {
+          var extensionByType = {'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};
+          for (var index = 0; index < referenceFiles.length; index++) {
+            var file = referenceFiles[index];
+            var path = authenticatedUser.id + '/' + requestId + '/' + window.crypto.randomUUID() + '.' + extensionByType[file.type];
+            var upload = await client.storage.from('custom-gift-uploads').upload(path, file, {
+              upsert: false,
+              contentType: file.type
+            });
+            if (upload.error) throw new Error('Reference image upload failed: ' + upload.error.message);
+            uploadedPaths.push(path);
+          }
+          var linked = await client.rpc('customer_attach_custom_gift_references', {
+            p_request_id: requestId,
+            p_storage_paths: uploadedPaths
+          });
+          if (linked.error) throw new Error('Reference images were uploaded but could not be linked: ' + linked.error.message);
+        }
       } catch (error) {
+        var cleanupError = null;
+        if (uploadedPaths.length) {
+          var cleanup = await client.storage.from('custom-gift-uploads').remove(uploadedPaths);
+          if (cleanup.error) cleanupError = cleanup.error.message;
+        }
+        if (requestSaved) {
+          document.getElementById('main').innerHTML = '<section class="confirmation"><p class="eyebrow">REQUEST SAVED</p><h1>Your custom gift request is recorded ♡</h1><p>Request reference: ' + escapeHTML(requestId) + '</p><p>However, the reference images could not be attached: ' + escapeHTML(error.message) + (cleanupError ? ' Cleanup also failed: ' + escapeHTML(cleanupError) : '') + '. Please email us and include this reference number.</p><a class="button primary" href="mailto:thekeeplilyco26@gmail.com?subject=Custom%20gift%20request%20' + encodeURIComponent(requestId) + '">Contact the store</a></section>';
+          return;
+        }
         button.disabled = false;
         button.innerHTML = 'Send custom request ' + icon('arrow');
-        setFormMessage(form, 'Your request could not be submitted. Please try again.', true);
-        return;
-      }
-      if (result.error) {
-        button.disabled = false;
-        button.innerHTML = 'Send custom request ' + icon('arrow');
-        setFormMessage(form, 'Your request could not be submitted. Please check the fields and try again.', true);
+        setFormMessage(form, 'Your request could not be submitted: ' + (error && error.message ? error.message : 'Please try again.'), true);
         return;
       }
       document.getElementById('main').innerHTML = '<section class="confirmation"><span class="success-icon">' + icon('check') + '</span><p class="eyebrow">REQUEST RECEIVED</p><h1>Your custom gift request is with us ♡</h1><p>We’ll review the details and contact you about the next steps.</p><a class="button primary" href="shop.html">Browse the collection</a></section>';
@@ -319,12 +446,16 @@
     var lines = cart.getCart();
     if (!lines.length) { document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Your bag is empty</h1><p>Add something thoughtful before heading to checkout.</p><a class="button primary" href="shop.html">Shop little gifts</a></section>'; return; }
     var client = window.KEEPLILY_SUPABASE_CLIENT;
-    if (!client || !window.KEEPLILY_LIVE_CATALOGUE) {
-      document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Checkout is not connected yet</h1><p>Your cart is still saved in this browser. Live ordering becomes available after the Supabase catalogue and order migration are configured.</p><a class="button primary" href="shop.html">Keep browsing</a></section>';
+    if (window.location.protocol === 'file:') {
+      document.getElementById('main').innerHTML = '<section class="empty-page"><h1>Open checkout on the website</h1><p>Sign-in and secure checkout require the hosted HTTPS site or a local HTTP server allowed in Supabase Auth. Your cart remains saved in this browser.</p><a class="button primary" href="account.html?return=checkout.html">Sign in or create an account</a></section>';
+      return;
+    }
+    if (!client) {
+      document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Checkout is not connected yet</h1><p>Your cart is still saved in this browser. Supabase could not initialize, so you cannot place an order right now.</p><a class="button primary" href="account.html?return=checkout.html">Try signing in again</a><a class="button secondary" href="shop.html">Keep browsing</a></section>';
       return;
     }
 
-    client.auth.getSession().then(function (sessionResult) {
+    client.auth.getSession().then(async function (sessionResult) {
       if (sessionResult.error) {
         document.getElementById('main').innerHTML = '<section class="empty-page"><h1>Your session could not be checked</h1><p>Please sign in again before placing an order.</p><a class="button primary" href="account.html?return=checkout.html">Sign in</a></section>';
         return;
@@ -333,11 +464,27 @@
         document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Sign in to continue</h1><p>Your cart will stay saved while you sign in or create an account.</p><a class="button primary" href="account.html?return=checkout.html">Sign in or create an account</a></section>';
         return;
       }
+      if (!window.KEEPLILY_LIVE_CATALOGUE) {
+        document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Checkout is not connected yet</h1><p>Your cart is still saved in this browser. Live ordering becomes available after the Supabase catalogue and order migration are configured.</p><a class="button primary" href="shop.html">Keep browsing</a></section>';
+        return;
+      }
       var missingProduct = lines.some(function (line) {
         return !products.some(function (product) { return product.id === line.productId; });
       });
       if (missingProduct) {
         document.getElementById('main').innerHTML = '<section class="empty-page"><h1>Your cart needs a refresh</h1><p>A product in your saved cart is no longer available in the live catalogue. Please update your bag before ordering.</p><a class="button primary" href="shop.html">Review the collection</a></section>';
+        return;
+      }
+
+      var pricingApproval;
+      try {
+        pricingApproval = await client.rpc('checkout_pricing_is_approved');
+      } catch (error) {
+        console.error('Checkout pricing approval could not be checked.', error);
+        pricingApproval = { error: error };
+      }
+      if (pricingApproval.error || pricingApproval.data !== true) {
+        document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Checkout is temporarily paused</h1><p>Delivery charges and tax treatment must be confirmed before we can accept an order. Your cart remains saved.</p><a class="button secondary" href="shop.html">Keep browsing</a></section>';
         return;
       }
 
@@ -504,6 +651,10 @@
               }
               try { sessionStorage.removeItem(idempotencyStorageKey); } catch (error) {}
               cart.clear();
+              if (verifyResult.data.needs_review === true) {
+                document.getElementById('main').innerHTML = '<section class="confirmation"><span class="success-icon">' + icon('check') + '</span><p class="eyebrow">PAYMENT VERIFIED</p><h1>Your payment is received ♡</h1><p>Order <strong>' + escapeHTML(order.order_number) + '</strong> needs a stock review before it can be confirmed. Do not retry payment. Contact support with payment ID <strong>' + escapeHTML(paymentResponse.razorpay_payment_id) + '</strong>.</p><div class="confirmation-card"><span>Order total</span><strong>' + window.formatINR(Number(order.grand_total)) + '</strong><span>Payment status</span><strong>Paid · review required</strong></div><a class="button primary" href="account.html">View your account</a></section>';
+                return;
+              }
               document.getElementById('main').innerHTML = '<section class="confirmation"><span class="success-icon">' + icon('check') + '</span><p class="eyebrow">PAYMENT VERIFIED</p><h1>Your order is confirmed ♡</h1><p>Payment for order <strong>' + escapeHTML(order.order_number) + '</strong> has been verified successfully.</p><div class="confirmation-card"><span>Order total</span><strong>' + window.formatINR(Number(order.grand_total)) + '</strong><span>Payment status</span><strong>Paid</strong></div><a class="button primary" href="account.html">View your account</a></section>';
             } catch (verifyError) {
               console.error('Payment verification failed.', verifyError);
@@ -520,10 +671,34 @@
             }
           }
         });
-        razorpay.on('payment.failed', function (failure) {
+        razorpay.on('payment.failed', async function (failure) {
+          button.disabled = true;
+          button.textContent = 'Checking payment status…';
+          var metadata = failure && failure.error && failure.error.metadata || {};
+          if (metadata.payment_id) {
+            try {
+              var failedResult = await client.functions.invoke('verify-razorpay-payment', {
+                body: {
+                  outcome: 'failed',
+                  order_id: order.id,
+                  razorpay_payment_id: metadata.payment_id,
+                  razorpay_order_id: paymentOrder.razorpay_order_id
+                }
+              });
+              if (!failedResult.error && failedResult.data && failedResult.data.failed === true) {
+                button.disabled = false;
+                button.innerHTML = 'Retry payment ' + icon('arrow');
+                setFormMessage(form, 'Razorpay verified that the payment failed. No stock was deducted. You can retry payment.', true);
+                return;
+              }
+              console.error('Payment failure status could not be verified.', failedResult.error || failedResult.data);
+            } catch (failureError) {
+              console.error('Payment failure status could not be verified.', failureError);
+            }
+          }
           button.disabled = false;
           button.innerHTML = 'Retry payment ' + icon('arrow');
-          setFormMessage(form, (failure.error && failure.error.description) || 'Payment was not completed. Your order remains pending.', true);
+          setFormMessage(form, 'Payment was not confirmed. No stock was deducted; the order remains pending until payment status is verified. You can retry.', true);
         });
         razorpay.open();
       });
@@ -535,14 +710,15 @@
 
   function renderOrderSummary(target) {
     var lines = cart.getCart();
-    target.innerHTML = '<h2>Your order</h2>' + lines.map(function (line) { var product = cart.productById(line.productId); if (!product) return ''; return '<div class="summary-line"><img src="' + product.image + '" alt="" style="object-position:' + escapeHTML(product.imagePosition) + '"><div><strong>' + escapeHTML(product.name) + '</strong><small>' + escapeHTML(line.variant) + ' · Qty ' + line.quantity + (line.personalisation ? ' · ' + escapeHTML(line.personalisation) : '') + (line.giftMessage ? ' · Gift note: ' + escapeHTML(line.giftMessage) : '') + '</small></div><span>' + window.formatINR(cart.unitPrice(line) * line.quantity) + '</span></div>'; }).join('') + '<dl><div><dt>Subtotal</dt><dd>' + window.formatINR(cart.subtotal()) + '</dd></div><div><dt>Customisation</dt><dd>Included above</dd></div><div><dt>Shipping</dt><dd>To be confirmed</dd></div><div class="total"><dt>Total</dt><dd>' + window.formatINR(cart.subtotal()) + '</dd></div></dl>';
+    target.innerHTML = '<h2>Your order</h2>' + lines.map(function (line) { var product = cart.productById(line.productId); if (!product) return ''; return '<div class="summary-line">' + productImageMarkup(product, '', 'summary-image-placeholder', '') + '<div><strong>' + escapeHTML(product.name) + '</strong><small>' + escapeHTML(line.variant) + ' · Qty ' + line.quantity + (line.personalisation ? ' · ' + escapeHTML(line.personalisation) : '') + (line.giftMessage ? ' · Gift note: ' + escapeHTML(line.giftMessage) : '') + '</small></div><span>' + window.formatINR(cart.unitPrice(line) * line.quantity) + '</span></div>'; }).join('') + '<dl><div><dt>Subtotal</dt><dd>' + window.formatINR(cart.subtotal()) + '</dd></div><div><dt>Customisation</dt><dd>Included above</dd></div><div><dt>Shipping</dt><dd>To be confirmed</dd></div><div class="total"><dt>Total</dt><dd>' + window.formatINR(cart.subtotal()) + '</dd></div></dl>';
   }
 
   var policies = {
     shipping: { title: 'Shipping Policy', intro: 'A clear home for dispatch, delivery and shipping information.', items: ['[SHIPPING FEE TO BE CONFIRMED]', '[DELIVERY TIMELINES TO BE CONFIRMED]', 'Made-to-order preparation times will be confirmed before an order is accepted.'] },
     returns: { title: 'Returns & Refunds', intro: 'This policy will be finalised after the owner approves the terms.', items: ['[RETURN WINDOW TO BE CONFIRMED]', '[ELIGIBILITY FOR RETURNS TO BE CONFIRMED]', '[CANCELLATION POLICY TO BE CONFIRMED]'] },
-    privacy: { title: 'Privacy Policy', intro: 'The final privacy notice will explain how customer information is handled.', items: ['Cart and wishlist data are stored in your browser. Account details, addresses, submitted forms and order information are stored in Supabase when those services are enabled.', '[DATA RETENTION TERMS TO BE CONFIRMED]', 'Contact: thekeeplilyco26@gmail.com'] },
-    terms: { title: 'Terms & Conditions', intro: 'The final store terms will be published once reviewed and approved.', items: ['[ORDER ACCEPTANCE TERMS TO BE CONFIRMED]', '[CUSTOM PRODUCT TERMS TO BE CONFIRMED]', '[DISPUTE AND GOVERNING LAW TERMS TO BE CONFIRMED]'] }
+    privacy: { title: 'Privacy Policy', intro: 'This notice describes the information the store may collect when you browse, contact us, create an account, or place an order.', items: ['Information may include account name and email, profile phone number, delivery and billing addresses, order items and status, contact or custom-gift form details, newsletter email and consent, and cart or wishlist data stored in your browser.', 'We use this information to provide account access, maintain your cart and wishlist, respond to enquiries, prepare custom-gift quotations, process and fulfil orders, support customers, and send newsletter updates only where you subscribe.', 'Account, address, order, payment-reference, and submitted form records are stored in the store’s Supabase database when those services are enabled. Payment processing is provided by the configured payment provider; do not send full card details in a message.', 'Cart and wishlist information is stored in your browser. Authentication session data is used to keep you signed in. Do not use a shared device without signing out.', '[DATA RETENTION, DELETION REQUESTS, AND ANY ADDITIONAL PROCESSORS TO BE CONFIRMED BY THE OWNER.]', 'For a privacy question or data request, contact the store at thekeeplilyco26@gmail.com.'] },
+    terms: { title: 'Terms & Conditions', intro: 'These terms require owner review before orders or payments are accepted.', items: ['[ORDER ACCEPTANCE, PRICING, AND PAYMENT TERMS TO BE CONFIRMED]', '[SHIPPING CHARGES, DELIVERY ESTIMATES, TAX TREATMENT, AND FULFILMENT TERMS TO BE CONFIRMED]', '[CUSTOM PRODUCT APPROVAL, CANCELLATION, RETURN, AND REFUND TERMS TO BE CONFIRMED]', '[GOVERNING LAW AND DISPUTE TERMS TO BE CONFIRMED]'] },
+    copyright: { title: 'Copyright & Intellectual Property', intro: 'TheKeeplily Co. — Owned by Sejal Luniya.', items: ['Website text, product descriptions, product photography, branding and logo, original product designs, illustrations, and other creative materials are original materials of TheKeeplily Co. or are used with permission.', 'Except where applicable law permits or written permission is granted by TheKeeplily Co., copying, reproducing, adapting, distributing, publishing, or commercially using these materials is prohibited.', 'Do not remove copyright or attribution notices or redistribute copies of site content, images, designs, or creative materials.', 'To request permission or report a rights concern, contact thekeeplilyco26@gmail.com.'] }
   };
 
   function renderPolicy(name) {
@@ -563,7 +739,7 @@
       target.innerHTML = '<div class="cart-empty"><span class="empty-icon">♡</span><h3>Your bag feels a little light</h3><p>Find a handmade piece for someone special—or for you.</p><a href="shop.html" class="button primary">Find a little favourite</a></div>';
       return;
     }
-    target.innerHTML = '<div class="cart-lines">' + lines.map(function (line) { var product = cart.productById(line.productId); if (!product) return ''; return '<article><img src="' + product.image + '" alt="" style="object-position:' + escapeHTML(product.imagePosition) + '"><div><strong>' + escapeHTML(product.name) + '</strong><small>' + escapeHTML(line.variant) + (line.personalisation ? ' · ' + escapeHTML(line.personalisation) : '') + (line.giftMessage ? ' · Gift note: ' + escapeHTML(line.giftMessage) : '') + '</small><span>' + window.formatINR(cart.unitPrice(line)) + '</span><div class="mini-quantity"><button type="button" data-cart-delta="-1" data-cart-key="' + escapeHTML(line.key) + '" aria-label="Decrease">' + icon('minus') + '</button><span>' + line.quantity + '</span><button type="button" data-cart-delta="1" data-cart-key="' + escapeHTML(line.key) + '" aria-label="Increase">' + icon('plus') + '</button></div></div><button class="remove-line" type="button" data-cart-remove="' + escapeHTML(line.key) + '" aria-label="Remove ' + escapeHTML(product.name) + '">' + icon('close') + '</button></article>'; }).join('') + '</div><div class="cart-footer"><div><span>Subtotal</span><strong>' + window.formatINR(cart.subtotal()) + '</strong></div><p>Shipping is confirmed before ordering.</p><a href="checkout.html" class="button primary full">Checkout preview ' + icon('arrow') + '</a><button type="button" class="continue-button" data-drawer-close>Continue shopping</button></div>';
+    target.innerHTML = '<div class="cart-lines">' + lines.map(function (line) { var product = cart.productById(line.productId); if (!product) return ''; return '<article>' + productImageMarkup(product, '', 'cart-image-placeholder', '') + '<div><strong>' + escapeHTML(product.name) + '</strong><small>' + escapeHTML(line.variant) + (line.personalisation ? ' · ' + escapeHTML(line.personalisation) : '') + (line.giftMessage ? ' · Gift note: ' + escapeHTML(line.giftMessage) : '') + '</small><span>' + window.formatINR(cart.unitPrice(line)) + '</span><div class="mini-quantity"><button type="button" data-cart-delta="-1" data-cart-key="' + escapeHTML(line.key) + '" aria-label="Decrease">' + icon('minus') + '</button><span>' + line.quantity + '</span><button type="button" data-cart-delta="1" data-cart-key="' + escapeHTML(line.key) + '" aria-label="Increase">' + icon('plus') + '</button></div></div><button class="remove-line" type="button" data-cart-remove="' + escapeHTML(line.key) + '" aria-label="Remove ' + escapeHTML(product.name) + '">' + icon('close') + '</button></article>'; }).join('') + '</div><div class="cart-footer"><div><span>Subtotal</span><strong>' + window.formatINR(cart.subtotal()) + '</strong></div><p>Shipping is confirmed before ordering.</p><a href="checkout.html" class="button primary full">Checkout preview ' + icon('arrow') + '</a><button type="button" class="continue-button" data-drawer-close>Continue shopping</button></div>';
   }
 
   function updateCartCount() {
@@ -620,7 +796,7 @@
     shell();
     bindGlobalEvents();
     var page = document.body.dataset.page || 'home';
-    var titles = { home: 'TheKeeplily Co. | Little gifts, big feelings.', shop: 'Shop | TheKeeplily Co.', about: 'About | TheKeeplily Co.', contact: 'Contact | TheKeeplily Co.', custom: 'Custom Gifts | TheKeeplily Co.', checkout: 'Checkout | TheKeeplily Co.', account: 'Your Account | TheKeeplily Co.', shipping: 'Shipping Policy | TheKeeplily Co.', returns: 'Returns & Refunds | TheKeeplily Co.', privacy: 'Privacy Policy | TheKeeplily Co.', terms: 'Terms & Conditions | TheKeeplily Co.', 'not-found': 'Page not found | TheKeeplily Co.' };
+    var titles = { home: 'TheKeeplily Co. | Little gifts, big feelings.', shop: 'Shop | TheKeeplily Co.', about: 'About | TheKeeplily Co.', contact: 'Contact | TheKeeplily Co.', custom: 'Custom Gifts | TheKeeplily Co.', checkout: 'Checkout | TheKeeplily Co.', account: 'Your Account | TheKeeplily Co.', shipping: 'Shipping Policy | TheKeeplily Co.', returns: 'Returns & Refunds | TheKeeplily Co.', privacy: 'Privacy Policy | TheKeeplily Co.', terms: 'Terms & Conditions | TheKeeplily Co.', copyright: 'Copyright | TheKeeplily Co.', 'not-found': 'Page not found | TheKeeplily Co.' };
     if (titles[page]) document.title = titles[page];
     if (page === 'home') renderHome();
     else if (page === 'shop') renderShop();
@@ -636,13 +812,22 @@
   }
 
   function boot() {
+    if (document.body.dataset.page === 'account') {
+      init();
+      return;
+    }
     var ready = window.KEEPLILY_PRODUCTS_READY;
     if (ready && typeof ready.then === 'function') ready.then(function () {
       products = window.KEEPLILY_PRODUCTS || [];
       categories = window.KEEPLILY_CATEGORIES || [];
       init();
     }).catch(function (error) {
-      console.warn('Keeplily catalogue initialisation failed; opening the local preview.', error);
+      console.error('Keeplily catalogue initialisation failed.', error);
+      window.KEEPLILY_LIVE_CATALOGUE = false;
+      window.KEEPLILY_CATALOGUE_ERROR = 'The shop is temporarily unavailable.';
+      window.KEEPLILY_PRODUCTS = [];
+      products = [];
+      categories = window.KEEPLILY_CATEGORIES || [];
       init();
     });
     else init();

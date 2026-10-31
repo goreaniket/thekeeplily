@@ -1,17 +1,19 @@
 # TheKeeplily Co. — Supabase and backend setup
 
-The storefront remains plain HTML, CSS and JavaScript. This branch adds a Supabase-backed catalogue, customer accounts, public request forms, an authenticated admin panel, and an unpaid order foundation. It does not integrate Razorpay or Delhivery.
+The storefront remains plain HTML, CSS and JavaScript. This branch adds a Supabase-backed catalogue, customer accounts, public request forms, an authenticated admin panel, an order foundation, and Razorpay Test Mode integration source. Checkout remains disabled by the database pricing gate until the owner-approved shipping and tax rules are implemented; no payment is claimed as tested or live. Delhivery is not integrated.
 
 ## Supabase configuration
 
 1. Use the Supabase project owned by TheKeeplily Co.
 2. In **Project Settings → API**, copy the project URL and the publishable (or legacy anon) key into `js/supabase-config.js`.
 3. Only the URL and publishable/anon key belong in browser code. Never put a service-role key, database password, payment secret, courier token, or other private credential in the repository or a browser-exposed environment variable.
-4. In **Authentication → URL Configuration**, set the site URL and allow the deployed `/account.html` URL as a redirect. Password recovery and signup confirmation use that page.
+4. In **Authentication → URL Configuration**, set the site URL and allow the deployed `/account.html` callback URLs, including `?mode=update` for password recovery and `?return=checkout.html` for signup started from checkout. If testing locally, allow the exact localhost account URL too; `file://` pages cannot authenticate.
 
 The publishable key is intentionally public; Row Level Security and narrowly granted RPCs are the security boundary.
 
 ## Database setup and migration order
+
+For the blank, schema-matched product import templates and verified category lookup, see [`README-CATALOGUE-IMPORT.md`](./README-CATALOGUE-IMPORT.md). The templates intentionally contain no product data.
 
 For a **new Supabase project**, run these files in the SQL Editor in order:
 
@@ -19,6 +21,12 @@ For a **new Supabase project**, run these files in the SQL Editor in order:
 2. `supabase/migrations/20261030_contact_messages.sql` — contact inbox table and initial policies.
 3. `supabase/migrations/20261030110000_backend_foundation.sql` — additive customer records, inventory audit log, public form RPCs, and secure order/status RPCs. This migration is designed to be safe to run again.
 4. `supabase/migrations/20261030212100_rls_access_hardening.sql` — rebuilds table policies and grants so only active catalogue data is public and private records cannot be read with the anon key. Run after the backend migration.
+5. `supabase/migrations/20261031115000_checkout_pricing_gate.sql` — blocks checkout and pending-order creation until the owner approves the delivery/tax treatment and the server-side total matches it. The setting defaults to false.
+6. `supabase/migrations/20261031120000_razorpay_payment_indexes.sql` — adds payment uniqueness guards and the service-role-only payment confirmation RPC.
+7. `supabase/migrations/20261031125000_add_payment_review_order_status.sql` — adds a visible review state for a captured payment that cannot safely be fulfilled.
+8. `supabase/migrations/20261031130000_payment_inventory_atomic.sql` — restores prior unpaid-order deductions once, keeps new unpaid orders from changing stock, and deducts tracked stock atomically only after verified payment.
+9. `supabase/migrations/20261031140000_admin_dashboard_fields.sql` — adds order notes, custom-gift quote fields, idempotent/rate-limited contact submission, and the admin-only order-notes RPC.
+10. `supabase/migrations/20261031150000_admin_services.sql` — validates admin store-setting edits, adds private customer-owned gift-reference uploads, rate-limits gift requests, and queues owner notification events.
 
 The repository cannot show whether `20261030_contact_messages.sql` has already been executed in the hosted database. This must be checked in the Supabase dashboard. If its table and policies already exist, the file is safe to run again: it uses `CREATE TABLE IF NOT EXISTS` and replaces its named policies/trigger. Do not treat a file existing locally as proof that a migration ran.
 
@@ -38,12 +46,32 @@ The access-hardening migration removes existing policies on the affected tables 
 
 1. Visit `/account.html` and create an account, or create/invite a user through **Authentication → Users**.
 2. Complete email confirmation if enabled for the project.
-3. Sign-in sessions use the Supabase browser SDK's persisted session. Password reset uses the same page with a secure recovery link.
-4. Profiles, marketing preference, addresses, order history and owned custom-gift requests are restricted by RLS to the signed-in user. Expired or missing sessions cannot access customer order data.
+3. Sign-in supports the existing email/password flow and a one-time email code for existing accounts. The OTP path uses Supabase `signInWithOtp` with account creation disabled, verifies with `verifyOtp`, and applies a 60-second resend cooldown. Password reset uses the same page with a secure recovery link.
+4. For OTP messages to contain a copyable code, configure Supabase Auth email delivery/SMTP and the email template to include `{{ .Token }}`. Public Auth settings confirm email authentication is enabled and confirmation is required, but do not disclose SMTP delivery or template configuration. OTP sign-in requires the account to already exist; public code login does not create accounts or grant roles.
+5. Profiles, marketing preference, addresses, order history and owned custom-gift requests are restricted by RLS to the signed-in user. Expired or missing sessions cannot access customer order data.
 
-Customers may create unpaid orders only after signing in. The order RPC locks product rows, validates active products/options and current database prices, checks aggregate stock, writes the order/items, deducts tracked stock, and records inventory changes in one transaction. Repeating the same request key returns the existing order instead of decrementing stock twice.
+Customers may create unpaid orders only after signing in and after the checkout pricing gate is approved. The order RPC locks product rows, validates active products/options and current database prices, checks aggregate stock, and writes the order/items without changing inventory. Only the server-side payment confirmation RPC may deduct tracked stock, after Razorpay capture, amount, currency, order mapping, and signature have been verified. It locks product rows, rechecks availability, and records stock changes atomically. Duplicate callbacks do not deduct twice. If a captured payment can no longer be fulfilled safely, the payment is recorded as paid, stock is left unchanged, and the order enters `payment_review` for an administrator; the customer is told not to pay again.
 
-No shipping charge, tax, payment, refund or delivery policy is configured. Checkout labels the current total as excluding shipping and leaves payment pending; it does not mark an order paid. Tracked stock is deducted when the unpaid order is created. There is intentionally no automatic expiry/restock policy for abandoned or cancelled orders; review unpaid orders and adjust stock deliberately from the admin product editor until the owner sets that policy.
+Unpaid, failed, cancelled, and abandoned orders do not change stock. No temporary reservation is used. Cancelled or refunded paid orders do not automatically restore inventory; an authorized administrator must make any approved adjustment, which is audit-logged. No shipping charge or GST treatment is configured. The order RPC currently sets shipping and tax to zero, so its grand total is only the item subtotal. Do not enable payments until the owner/CA policies are approved and server-side totals implement them.
+
+The checkout pricing gate migration deliberately resets `store_settings.checkout_pricing_approved` to `false` and installs a database trigger that rejects pending orders while it is false. Keep it false until approved shipping/tax rules are implemented in the server-side total calculation; changing the flag alone does not add shipping or tax.
+
+## Admin settings and custom-gift images
+
+The admin Store Settings form saves contact details, owner notification preferences, shipping/tax configuration, and operating status using the admin-only `admin_update_store_settings` RPC. Shipping and tax values are configuration only: the order RPC does not yet apply them, and saving settings never approves checkout or changes `checkout_pricing_approved`.
+
+Customers must sign in before attaching reference images to a custom-gift request. Uploads are limited to three JPG/PNG/WebP files up to 5 MB each, use the private `custom-gift-uploads` bucket, and are linked only to the authenticated customer's request. Guest requests without images remain available. Admins open references from the dashboard through short-lived signed URLs.
+
+## Owner email notification setup
+
+The migration queues new order, server-verified successful-payment, contact-message, and custom-gift-request events in a service-role-only outbox. The `send-owner-notification` Edge Function sends plain-text notices through Resend; notifications remain disabled unless all of the following are true:
+
+1. Apply the migrations, deploy the function, and configure a Supabase Database Webhook for `public.owner_notification_outbox` INSERT events. Point it at `https://<project-ref>.supabase.co/functions/v1/send-owner-notification` and set the `x-notification-secret` request header to the same random value as the function's `NOTIFICATION_WEBHOOK_SECRET`.
+2. Add `RESEND_API_KEY`, a domain-verified `RESEND_FROM_EMAIL`, and `NOTIFICATION_WEBHOOK_SECRET` as Edge Function secrets. Do not place these values in the repository or chat.
+3. Confirm the notification recipient with the owner, save that address in the admin Store Settings form, and only then set `OWNER_NOTIFICATION_EMAIL_CONFIRMED=true` as an Edge Function secret.
+4. Enable owner notifications in Store Settings. Delivery also requires Resend to accept the message. Failed messages are retained in the outbox for bounded retries.
+
+The environment confirmation flag is an independent delivery gate; changing the database email or checkbox alone cannot enable delivery. Auth OTP email uses Supabase's separate SMTP and Auth email template settings and still requires `{{ .Token }}` in the email-code template.
 
 ## Store owner admin setup
 
@@ -54,7 +82,7 @@ No shipping charge, tax, payment, refund or delivery policy is configured. Check
 
 This SQL must be run manually in the Supabase dashboard. It does not create an account, password, or public admin-registration path. Role changes are blocked for browser sessions, and both the admin UI and database policies verify the signed-in user's profile role server-side.
 
-The admin portal is at `/admin/`. It supports admin sign-in, overview counts, product create/edit and image upload, order listing/status changes, custom-gift request management, and the contact inbox. Payment status is read-only and cannot be changed from the browser.
+The admin portal is at `/admin/`. It verifies the signed-in profile role with Supabase before showing admin features. The customer account page only shows its admin link when the signed-in profile already has the admin role; RLS and admin-only RPCs remain the access boundary. The portal supports paid-only revenue, order lifecycle counts, customers and paid-order spending, product/category editing and image upload, searchable/filterable order details and internal notes, read-only verified payment records, shipment status/tracking edits, custom-gift quotes and notes, contact status/notes, newsletter search/status/CSV export, and a read-only view of configured non-secret store settings. Low-stock counts require an explicitly configured `low_stock_threshold`. It never exposes payment signatures or changes payment status manually.
 
 ## RLS and form security
 
@@ -76,11 +104,13 @@ Get-ChildItem .\js\*.js, .\admin\*.js -ErrorAction SilentlyContinue | ForEach-Ob
 
 Serve the repository with a local static HTTP server (rather than `file://`) and verify:
 
-- public catalogue load and preview fallback;
+- public live-catalogue load, safe empty/error states, and no demo-product fallback;
 - account sign-up, confirmation, sign-in/out and password reset;
 - profile/address isolation and customer order history;
 - contact, newsletter and custom-gift submission;
+- contact-message idempotency/rate-limit behavior and OTP code delivery/verification using the configured Supabase email template;
 - checkout rejects anonymous access and creates only unpaid orders;
+- checkout remains blocked until its pricing approval setting is enabled after the final total is configured;
 - replaying one idempotency key does not create a second order or stock deduction;
 - customer requests cannot read another customer's records or change order/payment fields;
 - non-admin users cannot enter `/admin/`, while the promoted owner can manage products, requests and order status.
@@ -89,14 +119,16 @@ Supabase SQL Editor/database access is required to validate SQL execution and RL
 
 ## Remaining manual steps
 
-- Configure the project URL/publishable key and Auth redirect allowlist.
+- Configure the project URL/publishable key, Auth redirect allowlist, SMTP delivery, and OTP email template. The public Auth settings endpoint shows email auth enabled and auto-confirm disabled, but does not disclose SMTP credentials or templates; verify these in Supabase Dashboard.
 - Check migration history in the Supabase dashboard; run the missing migrations in the order above.
 - Create/confirm the owner Auth account and run the owner-promotion SQL.
 - Exercise database/RLS/auth flows against that project.
-- Decide shipping/tax/payment/cancellation/restock policies before accepting real payments or treating order totals as final.
-- Razorpay, Delhivery, transactional email and production deployment are not implemented here.
+- Decide shipping/tax/cancellation/restock policies before accepting payments or treating order totals as final.
+- Razorpay Edge Function source supports Test Mode integration, but no transaction is verified and no credential/deployment access is available here. Do not enable Live Mode.
+- Apply the latest migrations and configure the database webhook, verified owner notification email, and Resend secrets before expecting owner email delivery.
+- Delhivery integration is not configured.
 
 
 ## Razorpay checkout integration
 
-The first Test Mode implementation is documented separately in `README-RAZORPAY-TEST-INTEGRATION.md`. It uses the existing orders/payments schema and adds two Supabase Edge Functions. Apply `supabase/migrations/20261031120000_razorpay_payment_indexes.sql`, configure the Razorpay Test credentials only as Supabase Edge Function secrets, deploy both functions, and complete the documented Test Mode checklist before considering a production merge. No Live Mode credentials or production deployment are included.
+The first Test Mode implementation is documented separately in `README-RAZORPAY-TEST-INTEGRATION.md`. It uses the existing orders/payments schema and adds two Supabase Edge Functions. Apply the checkout pricing gate and `supabase/migrations/20261031120000_razorpay_payment_indexes.sql`, configure the Razorpay Test credentials only as Supabase Edge Function secrets, deploy both functions, and complete the documented Test Mode checklist before considering a production merge. No Live Mode credentials or production deployment are included.

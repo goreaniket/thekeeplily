@@ -1,53 +1,78 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("SITE_ORIGIN") ?? "https://thekeeplilyco.vercel.app",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const defaultOrigin = Deno.env.get("SITE_ORIGIN") ?? "https://thekeeplilyco.vercel.app";
+const allowedOrigins = new Set([
+  defaultOrigin,
+  ...(Deno.env.get("SITE_ORIGINS") ?? "").split(",").map((origin) => origin.trim()).filter(Boolean),
+]);
 
-function response(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+function corsHeaders(req: Request) {
+  const origin = req.headers.get("Origin");
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+  if (origin && allowedOrigins.has(origin)) headers["Access-Control-Allow-Origin"] = origin;
+  return headers;
+}
+
+function response(req: Request, body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders(req), "Content-Type": "application/json" } });
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return response({ error: "Method not allowed" }, 405);
+  const origin = req.headers.get("Origin");
+  if (origin && !allowedOrigins.has(origin)) return response(req, { error: "Origin not allowed" }, 403);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(req) });
+  if (req.method !== "POST") return response(req, { error: "Method not allowed" }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const keyId = Deno.env.get("RAZORPAY_KEY_ID");
   const keySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
-  if (!keyId || !keySecret) return response({ error: "Payment provider is not configured" }, 503);
+  if (!keyId || !keySecret) return response(req, { error: "Payment provider is not configured" }, 503);
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return response({ error: "Sign in is required" }, 401);
+  if (!authHeader) return response(req, { error: "Sign in is required" }, 401);
   const authClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
   const { data: { user }, error: authError } = await authClient.auth.getUser();
-  if (authError || !user) return response({ error: "Invalid or expired session" }, 401);
+  if (authError || !user) return response(req, { error: "Invalid or expired session" }, 401);
 
   let body: { order_id?: string };
-  try { body = await req.json(); } catch { return response({ error: "Invalid request body" }, 400); }
-  if (!body.order_id || !/^[0-9a-f-]{36}$/i.test(body.order_id)) return response({ error: "A valid order ID is required" }, 400);
+  try { body = await req.json(); } catch { return response(req, { error: "Invalid request body" }, 400); }
+  if (!body.order_id || !/^[0-9a-f-]{36}$/i.test(body.order_id)) return response(req, { error: "A valid order ID is required" }, 400);
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+  const { data: pricingSetting, error: pricingError } = await admin.from("store_settings")
+    .select("value").eq("key", "checkout_pricing_approved").maybeSingle();
+  if (pricingError) return response(req, { error: "Checkout pricing configuration is unavailable" }, 503);
+  if (!pricingSetting || pricingSetting.value !== true) {
+    return response(req, { error: "Checkout is paused until delivery charges and tax treatment are approved" }, 403);
+  }
+  const { data: storeStatus, error: storeStatusError } = await admin.from("store_settings")
+    .select("value").eq("key", "store_status").maybeSingle();
+  if (storeStatusError) return response(req, { error: "Store operating status could not be verified" }, 503);
+  if (storeStatus?.value !== "active") return response(req, { error: "Checkout is paused because the store is not open" }, 403);
+
   const { data: order, error: orderError } = await admin.from("orders")
     .select("id, order_number, user_id, status, payment_status, grand_total, currency")
     .eq("id", body.order_id).eq("user_id", user.id).maybeSingle();
-  if (orderError || !order) return response({ error: "Order not found" }, 404);
-  if (order.status !== "pending_payment" || order.payment_status !== "pending") return response({ error: "This order is not awaiting payment" }, 409);
-  if (order.currency !== "INR") return response({ error: "Only INR orders are supported" }, 400);
+  if (orderError || !order) return response(req, { error: "Order not found" }, 404);
+  if (order.status !== "pending_payment" || order.payment_status !== "pending") return response(req, { error: "This order is not awaiting payment" }, 409);
+  if (order.currency !== "INR") return response(req, { error: "Only INR orders are supported" }, 400);
 
   const amount = Math.round(Number(order.grand_total) * 100);
-  if (!Number.isSafeInteger(amount) || amount < 100) return response({ error: "Order amount must be at least ₹1.00" }, 400);
+  if (!Number.isSafeInteger(amount) || amount < 100) return response(req, { error: "Order amount must be at least ₹1.00" }, 400);
 
-  const { data: previous } = await admin.from("payments").select("id, provider_order_id, amount, currency, status")
+  const { data: previous, error: previousError } = await admin.from("payments").select("id, provider_order_id, amount, currency, status")
     .eq("order_id", order.id).eq("provider", "razorpay").eq("status", "pending").maybeSingle();
+  if (previousError) return response(req, { error: "Existing payment state could not be verified. Please retry safely." }, 503);
 
   let providerOrderId = previous?.provider_order_id ?? null;
   if (providerOrderId && (Math.round(Number(previous.amount) * 100) !== amount || previous.currency !== "INR")) {
-    return response({ error: "Existing payment amount does not match the order" }, 409);
+    return response(req, { error: "Existing payment amount does not match the order" }, 409);
   }
 
   if (!providerOrderId) {
@@ -60,7 +85,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ amount, currency: "INR", receipt: order.order_number, notes: { store_order_id: order.id, customer_id: user.id } }),
     });
     const rpBody = await rp.json().catch(() => ({}));
-    if (!rp.ok || !rpBody.id) return response({ error: "Razorpay could not create the payment order", provider_status: rp.status }, 502);
+    if (!rp.ok || !rpBody.id) return response(req, { error: "Razorpay could not create the payment order", provider_status: rp.status }, 502);
     providerOrderId = rpBody.id;
 
     const { error: insertError } = await admin.from("payments").insert({
@@ -68,8 +93,8 @@ Deno.serve(async (req) => {
       amount: Number(order.grand_total), currency: "INR", status: "pending",
       raw_response: { order_id: providerOrderId, receipt: order.order_number },
     });
-    if (insertError) return response({ error: "Payment record could not be saved. Contact support before retrying." }, 500);
+    if (insertError) return response(req, { error: "Payment record could not be saved. Contact support before retrying." }, 500);
   }
 
-  return response({ key_id: keyId, razorpay_order_id: providerOrderId, amount, currency: "INR", order_number: order.order_number });
+  return response(req, { key_id: keyId, razorpay_order_id: providerOrderId, amount, currency: "INR", order_number: order.order_number });
 });
