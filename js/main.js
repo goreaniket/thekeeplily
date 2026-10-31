@@ -325,13 +325,52 @@
 
   function renderCustomGifts() {
     document.getElementById('main').innerHTML = '<section class="page-hero custom-page-hero"><p class="eyebrow">FROM YOUR HEART, MADE BY OUR HANDS</p><h1>Made Especially for You ♡</h1><p>Have something special in mind? Tell us your idea and let’s turn it into a little keepsake.</p></section><section class="custom-form-layout"><div class="process-card"><p class="eyebrow">HOW IT WORKS</p><h2>From idea to keepsake</h2><ol><li><span>1</span><div><strong>Share your idea</strong><p>Tell us the moment, mood and details.</p></div></li><li><span>2</span><div><strong>Review together</strong><p>At launch, we’ll confirm feasibility, timeline and quote.</p></div></li><li><span>3</span><div><strong>Approve the plan</strong><p>Nothing is charged automatically.</p></div></li></ol></div><form class="custom-form" id="custom-form"><div class="form-grid"><label>Name<input name="name" required maxlength="120" autocomplete="name"></label><label>Email<input name="email" required type="email" maxlength="254" autocomplete="email"></label><label>Phone<input name="phone" required inputmode="tel" maxlength="40" autocomplete="tel"></label><label>Occasion<select name="occasion" required><option value="">Choose an occasion</option><option>Birthday</option><option>Friendship</option><option>Anniversary</option><option>Festive</option><option>Just because</option></select></label><label>Product type<select name="productType" required><option value="">What would you like?</option>' + categories.concat(['Gift Set','Something else']).map(function (name) { return '<option>' + escapeHTML(name) + '</option>'; }).join('') + '</select></label><label>Budget<input name="budget" required inputmode="numeric" maxlength="80" placeholder="₹"></label><label>Required date<input name="requiredDate" type="date"></label><label>Quantity<input name="quantity" type="number" min="1" max="100" value="1" required></label></div><label>Colours / theme<input name="theme" maxlength="500" placeholder="Blush pink, daisies, warm neutrals…"></label><label>Customisation details<textarea name="details" required maxlength="5000" placeholder="Tell us the idea, names, initials and the feeling behind the gift…"></textarea></label><label>Gift message<textarea name="giftMessage" maxlength="1000" placeholder="Optional message for the recipient"></textarea></label><label>Notes<textarea name="notes" maxlength="2000"></textarea></label><label class="form-trap" aria-hidden="true">Leave this empty<input name="website" type="text" tabindex="-1" autocomplete="off"></label><button class="button primary full" type="submit">Send custom request ' + icon('arrow') + '</button><p class="form-message" data-form-message role="status" aria-live="polite"></p></form></section>';
-    document.getElementById('custom-form').addEventListener('submit', async function (event) {
+    var customForm = document.getElementById('custom-form');
+    var referenceLabel = document.createElement('label');
+    referenceLabel.textContent = 'Reference images (optional)';
+    var referenceInput = document.createElement('input');
+    referenceInput.name = 'reference_images';
+    referenceInput.type = 'file';
+    referenceInput.accept = 'image/jpeg,image/png,image/webp';
+    referenceInput.multiple = true;
+    var referenceHelp = document.createElement('small');
+    referenceHelp.textContent = 'Up to 3 JPG, PNG, or WebP images, 5 MB each. Sign in to attach private reference images; requests without images can still be submitted.';
+    referenceLabel.append(referenceInput, referenceHelp);
+    customForm.insertBefore(referenceLabel, customForm.querySelector('.form-trap'));
+    customForm.addEventListener('submit', async function (event) {
       event.preventDefault();
       var form = event.currentTarget;
       var data = new FormData(form);
       var button = form.querySelector('button[type="submit"]');
       var client = window.KEEPLILY_SUPABASE_CLIENT;
       if (!client) { setFormMessage(form, 'Custom requests are temporarily unavailable. Please try again later.', true); return; }
+      var referenceFiles = Array.from(referenceInput.files || []);
+      if (referenceFiles.length > 3 || referenceFiles.some(function (file) {
+        return !/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 5 * 1024 * 1024 || file.size === 0;
+      })) {
+        setFormMessage(form, 'Choose at most 3 non-empty JPG, PNG, or WebP images no larger than 5 MB each.', true);
+        return;
+      }
+      var authenticatedUser = null;
+      if (referenceFiles.length) {
+        var authResult;
+        try {
+          authResult = await client.auth.getUser();
+        } catch (error) {
+          setFormMessage(form, 'Your sign-in could not be verified: ' + (error && error.message ? error.message : 'Please try again.'), true);
+          return;
+        }
+        if (authResult.error && authResult.error.name !== 'AuthSessionMissingError' &&
+            authResult.error.code !== 'session_not_found') {
+          setFormMessage(form, 'Your sign-in could not be verified: ' + authResult.error.message, true);
+          return;
+        }
+        authenticatedUser = authResult.data && authResult.data.user || null;
+        if (!authenticatedUser) {
+          setFormMessage(form, 'Sign in to your account before attaching private reference images. You can submit this request without images.', true);
+          return;
+        }
+      }
       var budgetText = String(data.get('budget') || '').replace(/,/g, '');
       var budgetNumbers = budgetText.match(/\d+(?:\.\d+)?/g) || [];
       var description = [
@@ -341,9 +380,11 @@
       button.disabled = true;
       button.textContent = 'Sending request…';
       setFormMessage(form, 'Sending your request…');
-      var result;
+      var requestSaved = false;
+      var requestId = null;
+      var uploadedPaths = [];
       try {
-        result = await client.rpc('submit_custom_gift_request', {
+        var result = await client.rpc('submit_custom_gift_request', {
           p_name: String(data.get('name') || '').trim(),
           p_email: String(data.get('email') || '').trim().toLowerCase(),
           p_phone: String(data.get('phone') || '').trim(),
@@ -358,16 +399,43 @@
           p_gift_message: String(data.get('giftMessage') || '').trim() || null,
           p_website: String(data.get('website') || '')
         });
+        if (result.error) throw result.error;
+        if (typeof result.data !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(result.data)) {
+          throw new Error('Supabase did not return a saved request ID.');
+        }
+        requestId = result.data;
+        requestSaved = true;
+        if (referenceFiles.length) {
+          var extensionByType = {'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};
+          for (var index = 0; index < referenceFiles.length; index++) {
+            var file = referenceFiles[index];
+            var path = authenticatedUser.id + '/' + requestId + '/' + window.crypto.randomUUID() + '.' + extensionByType[file.type];
+            var upload = await client.storage.from('custom-gift-uploads').upload(path, file, {
+              upsert: false,
+              contentType: file.type
+            });
+            if (upload.error) throw new Error('Reference image upload failed: ' + upload.error.message);
+            uploadedPaths.push(path);
+          }
+          var linked = await client.rpc('customer_attach_custom_gift_references', {
+            p_request_id: requestId,
+            p_storage_paths: uploadedPaths
+          });
+          if (linked.error) throw new Error('Reference images were uploaded but could not be linked: ' + linked.error.message);
+        }
       } catch (error) {
+        var cleanupError = null;
+        if (uploadedPaths.length) {
+          var cleanup = await client.storage.from('custom-gift-uploads').remove(uploadedPaths);
+          if (cleanup.error) cleanupError = cleanup.error.message;
+        }
+        if (requestSaved) {
+          document.getElementById('main').innerHTML = '<section class="confirmation"><p class="eyebrow">REQUEST SAVED</p><h1>Your custom gift request is recorded ♡</h1><p>Request reference: ' + escapeHTML(requestId) + '</p><p>However, the reference images could not be attached: ' + escapeHTML(error.message) + (cleanupError ? ' Cleanup also failed: ' + escapeHTML(cleanupError) : '') + '. Please email us and include this reference number.</p><a class="button primary" href="mailto:thekeeplilyco26@gmail.com?subject=Custom%20gift%20request%20' + encodeURIComponent(requestId) + '">Contact the store</a></section>';
+          return;
+        }
         button.disabled = false;
         button.innerHTML = 'Send custom request ' + icon('arrow');
-        setFormMessage(form, 'Your request could not be submitted. Please try again.', true);
-        return;
-      }
-      if (result.error) {
-        button.disabled = false;
-        button.innerHTML = 'Send custom request ' + icon('arrow');
-        setFormMessage(form, 'Your request could not be submitted. Please check the fields and try again.', true);
+        setFormMessage(form, 'Your request could not be submitted: ' + (error && error.message ? error.message : 'Please try again.'), true);
         return;
       }
       document.getElementById('main').innerHTML = '<section class="confirmation"><span class="success-icon">' + icon('check') + '</span><p class="eyebrow">REQUEST RECEIVED</p><h1>Your custom gift request is with us ♡</h1><p>We’ll review the details and contact you about the next steps.</p><a class="button primary" href="shop.html">Browse the collection</a></section>';

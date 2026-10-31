@@ -51,6 +51,10 @@ Deno.serve(async (req) => {
   if (!pricingSetting || pricingSetting.value !== true) {
     return response(req, { error: "Checkout is paused until delivery charges and tax treatment are approved" }, 403);
   }
+  const { data: storeStatus, error: storeStatusError } = await admin.from("store_settings")
+    .select("value").eq("key", "store_status").maybeSingle();
+  if (storeStatusError) return response(req, { error: "Store operating status could not be verified" }, 503);
+  if (storeStatus?.value !== "active") return response(req, { error: "Checkout is paused because the store is not open" }, 403);
 
   const { data: order, error: orderError } = await admin.from("orders")
     .select("id, order_number, user_id, status, payment_status, grand_total, currency")
@@ -62,8 +66,9 @@ Deno.serve(async (req) => {
   const amount = Math.round(Number(order.grand_total) * 100);
   if (!Number.isSafeInteger(amount) || amount < 100) return response(req, { error: "Order amount must be at least ₹1.00" }, 400);
 
-  const { data: previous } = await admin.from("payments").select("id, provider_order_id, amount, currency, status")
+  const { data: previous, error: previousError } = await admin.from("payments").select("id, provider_order_id, amount, currency, status")
     .eq("order_id", order.id).eq("provider", "razorpay").eq("status", "pending").maybeSingle();
+  if (previousError) return response(req, { error: "Existing payment state could not be verified. Please retry safely." }, 503);
 
   let providerOrderId = previous?.provider_order_id ?? null;
   if (providerOrderId && (Math.round(Number(previous.amount) * 100) !== amount || previous.currency !== "INR")) {

@@ -26,6 +26,7 @@ For a **new Supabase project**, run these files in the SQL Editor in order:
 7. `supabase/migrations/20261031125000_add_payment_review_order_status.sql` — adds a visible review state for a captured payment that cannot safely be fulfilled.
 8. `supabase/migrations/20261031130000_payment_inventory_atomic.sql` — restores prior unpaid-order deductions once, keeps new unpaid orders from changing stock, and deducts tracked stock atomically only after verified payment.
 9. `supabase/migrations/20261031140000_admin_dashboard_fields.sql` — adds order notes, custom-gift quote fields, idempotent/rate-limited contact submission, and the admin-only order-notes RPC.
+10. `supabase/migrations/20261031150000_admin_services.sql` — validates admin store-setting edits, adds private customer-owned gift-reference uploads, rate-limits gift requests, and queues owner notification events.
 
 The repository cannot show whether `20261030_contact_messages.sql` has already been executed in the hosted database. This must be checked in the Supabase dashboard. If its table and policies already exist, the file is safe to run again: it uses `CREATE TABLE IF NOT EXISTS` and replaces its named policies/trigger. Do not treat a file existing locally as proof that a migration ran.
 
@@ -54,6 +55,23 @@ Customers may create unpaid orders only after signing in and after the checkout 
 Unpaid, failed, cancelled, and abandoned orders do not change stock. No temporary reservation is used. Cancelled or refunded paid orders do not automatically restore inventory; an authorized administrator must make any approved adjustment, which is audit-logged. No shipping charge or GST treatment is configured. The order RPC currently sets shipping and tax to zero, so its grand total is only the item subtotal. Do not enable payments until the owner/CA policies are approved and server-side totals implement them.
 
 The checkout pricing gate migration deliberately resets `store_settings.checkout_pricing_approved` to `false` and installs a database trigger that rejects pending orders while it is false. Keep it false until approved shipping/tax rules are implemented in the server-side total calculation; changing the flag alone does not add shipping or tax.
+
+## Admin settings and custom-gift images
+
+The admin Store Settings form saves contact details, owner notification preferences, shipping/tax configuration, and operating status using the admin-only `admin_update_store_settings` RPC. Shipping and tax values are configuration only: the order RPC does not yet apply them, and saving settings never approves checkout or changes `checkout_pricing_approved`.
+
+Customers must sign in before attaching reference images to a custom-gift request. Uploads are limited to three JPG/PNG/WebP files up to 5 MB each, use the private `custom-gift-uploads` bucket, and are linked only to the authenticated customer's request. Guest requests without images remain available. Admins open references from the dashboard through short-lived signed URLs.
+
+## Owner email notification setup
+
+The migration queues new order, server-verified successful-payment, contact-message, and custom-gift-request events in a service-role-only outbox. The `send-owner-notification` Edge Function sends plain-text notices through Resend; notifications remain disabled unless all of the following are true:
+
+1. Apply the migrations, deploy the function, and configure a Supabase Database Webhook for `public.owner_notification_outbox` INSERT events. Point it at `https://<project-ref>.supabase.co/functions/v1/send-owner-notification` and set the `x-notification-secret` request header to the same random value as the function's `NOTIFICATION_WEBHOOK_SECRET`.
+2. Add `RESEND_API_KEY`, a domain-verified `RESEND_FROM_EMAIL`, and `NOTIFICATION_WEBHOOK_SECRET` as Edge Function secrets. Do not place these values in the repository or chat.
+3. Confirm the notification recipient with the owner, save that address in the admin Store Settings form, and only then set `OWNER_NOTIFICATION_EMAIL_CONFIRMED=true` as an Edge Function secret.
+4. Enable owner notifications in Store Settings. Delivery also requires Resend to accept the message. Failed messages are retained in the outbox for bounded retries.
+
+The environment confirmation flag is an independent delivery gate; changing the database email or checkbox alone cannot enable delivery. Auth OTP email uses Supabase's separate SMTP and Auth email template settings and still requires `{{ .Token }}` in the email-code template.
 
 ## Store owner admin setup
 
@@ -101,12 +119,14 @@ Supabase SQL Editor/database access is required to validate SQL execution and RL
 
 ## Remaining manual steps
 
-- Configure the project URL/publishable key, Auth redirect allowlist, SMTP delivery, and OTP email template.
+- Configure the project URL/publishable key, Auth redirect allowlist, SMTP delivery, and OTP email template. The public Auth settings endpoint shows email auth enabled and auto-confirm disabled, but does not disclose SMTP credentials or templates; verify these in Supabase Dashboard.
 - Check migration history in the Supabase dashboard; run the missing migrations in the order above.
 - Create/confirm the owner Auth account and run the owner-promotion SQL.
 - Exercise database/RLS/auth flows against that project.
 - Decide shipping/tax/cancellation/restock policies before accepting payments or treating order totals as final.
-- Razorpay is configured for Test Mode only. Delhivery integration and owner email notifications are not configured. Apply the latest migration before using order notes or custom-gift quotation fields.
+- Razorpay Edge Function source supports Test Mode integration, but no transaction is verified and no credential/deployment access is available here. Do not enable Live Mode.
+- Apply the latest migrations and configure the database webhook, verified owner notification email, and Resend secrets before expecting owner email delivery.
+- Delhivery integration is not configured.
 
 
 ## Razorpay checkout integration

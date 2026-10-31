@@ -109,7 +109,35 @@
           <div class="panel" id="panel-requests"><p class="eyebrow">MADE PERSONAL</p><h1>Custom gift requests</h1><div class="table-wrap"><table><thead><tr><th>Request</th><th>Contact</th><th>Occasion</th><th>Status</th></tr></thead><tbody id="requests-table"><tr><td colspan="4">Loading requests…</td></tr></tbody></table></div></div>
           <div class="panel" id="panel-messages"><p class="eyebrow">CUSTOMER ENQUIRIES</p><h1>Contact messages</h1><div class="table-wrap"><table><thead><tr><th>From</th><th>Subject</th><th>Message</th><th>Status</th><th>Received</th></tr></thead><tbody id="messages-table"><tr><td colspan="5">Loading messages…</td></tr></tbody></table></div></div>
           <div class="panel" id="panel-newsletter"><div class="panel-heading"><div><p class="eyebrow">KEEP IN TOUCH</p><h1>Newsletter subscribers</h1></div><button class="primary-button" id="export-newsletter" type="button">Export CSV</button></div><div class="admin-filters"><label>Search<input id="newsletter-search" type="search" placeholder="Search subscriber email"></label><label>Status<select id="newsletter-filter"><option value="">All statuses</option><option value="true">Active</option><option value="false">Inactive</option></select></label></div><div class="table-wrap"><table><thead><tr><th>Email</th><th>Status</th><th>Subscribed</th></tr></thead><tbody id="newsletter-table"><tr><td colspan="3">Loading subscribers…</td></tr></tbody></table></div></div>
-          <div class="panel" id="panel-settings"><p class="eyebrow">STORE CONFIGURATION</p><h1>Store settings</h1><p class="muted">Only settings already stored in the database are shown. Pricing, shipping, tax and live-payment settings must remain unapproved until their business rules are configured and verified.</p><div class="table-wrap"><table><thead><tr><th>Setting</th><th>Value</th><th>Updated</th></tr></thead><tbody id="settings-table"><tr><td colspan="3">Loading settings…</td></tr></tbody></table></div></div>
+          <div class="panel" id="panel-settings">
+            <p class="eyebrow">STORE CONFIGURATION</p><h1>Store settings</h1>
+            <p class="muted">Saved shipping and tax values do not approve checkout or enable payments. Owner notification delivery remains disabled until its address is confirmed and the server-side email provider is configured.</p>
+            <form id="store-settings-form" class="editor-card">
+              <h2>Store contact</h2>
+              <div class="form-grid">
+                <label>Store name<input name="store_name" maxlength="120"></label>
+                <label>Contact email<input name="store_contact_email" type="email" maxlength="254"></label>
+                <label>Contact phone<input name="store_contact_phone" maxlength="40"></label>
+                <label class="wide">Contact address<textarea name="store_contact_address" maxlength="500" rows="2"></textarea></label>
+                <label>Owner notification email<input name="notification_email" type="email" maxlength="254"></label>
+                <div class="form-checks"><label><input name="owner_notifications_enabled" type="checkbox"> Owner notifications enabled</label></div>
+                <label>Store status<select name="store_status"><option value="unconfigured">Not configured</option><option value="active">Open</option><option value="paused">Paused</option></select></label>
+              </div>
+              <h2>Shipping configuration</h2>
+              <div class="form-grid">
+                <label>Shipping method<select name="shipping_mode"><option value="unconfigured">Not configured</option><option value="flat_rate">Owner-set flat rate</option></select></label>
+                <label>Flat rate (₹)<input name="shipping_amount" type="number" min="0" step="0.01"></label>
+              </div>
+              <h2>Tax configuration</h2>
+              <div class="form-grid">
+                <label>Tax treatment<select name="tax_mode"><option value="unconfigured">Not configured</option><option value="inclusive">Inclusive</option><option value="exclusive">Exclusive</option></select></label>
+                <label>Tax rate (%)<input name="tax_rate" type="number" min="0" max="100" step="0.01"></label>
+              </div>
+              <p class="form-message" id="settings-message" role="status"></p>
+              <button class="primary-button" type="submit">Save store settings</button>
+            </form>
+            <div class="table-wrap"><table><thead><tr><th>Setting</th><th>Value</th><th>Updated</th></tr></thead><tbody id="settings-table"><tr><td colspan="3">Loading settings…</td></tr></tbody></table></div>
+          </div>
           <p class="global-message" id="admin-message" role="status"></p>
         </section>
       </div>

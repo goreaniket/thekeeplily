@@ -323,7 +323,7 @@
       body.innerHTML = '<tr><td colspan="5">Could not load shipments: '+escapeHTML(error.message)+'</td></tr>';
       return;
     }
-    body.innerHTML = result.map(function (shipment) {
+    body.innerHTML = shipments.map(function (shipment) {
       var order = Array.isArray(shipment.orders) ? shipment.orders[0] : shipment.orders;
       return '<tr><td>'+escapeHTML(order && order.order_number||'—')+'</td><td>'+escapeHTML(shipment.provider)+'</td><td><select data-shipment-status="'+escapeHTML(shipment.id)+'">'+optionList(['pending','ready_to_ship','pickup_scheduled','picked_up','in_transit','out_for_delivery','delivered','exception','rto_initiated','rto_delivered','cancelled'],shipment.status)+'</select></td><td><label class="sr-only">AWB number<input data-shipment-awb="'+escapeHTML(shipment.id)+'" value="'+escapeHTML(shipment.awb_number||'')+'" maxlength="120" placeholder="AWB number"></label><label class="sr-only">Tracking URL<input data-shipment-url="'+escapeHTML(shipment.id)+'" type="url" value="'+escapeHTML(shipment.tracking_url||'')+'" maxlength="1000" placeholder="https://tracking URL"></label></td><td><button class="table-link" type="button" data-save-shipment="'+escapeHTML(shipment.id)+'">Save</button></td></tr>';
     }).join('') || '<tr><td colspan="5">No shipment records yet.</td></tr>';
@@ -362,6 +362,23 @@
       body.innerHTML = '<tr><td colspan="3">Could not load settings: '+escapeHTML(result.error.message)+'</td></tr>';
       return;
     }
+    var settings = {};
+    (result.data || []).forEach(function (setting) { settings[setting.key] = setting.value; });
+    var form = $('store-settings-form');
+    function setValue(name, value) { form.elements[name].value = value == null ? '' : String(value); }
+    setValue('store_name', settings.store_name);
+    setValue('store_contact_email', settings.store_contact_email);
+    setValue('store_contact_phone', settings.store_contact_phone);
+    setValue('store_contact_address', settings.store_contact_address);
+    setValue('notification_email', settings.notification_email);
+    setValue('store_status', ['active','paused'].indexOf(settings.store_status) >= 0 ? settings.store_status : 'unconfigured');
+    form.elements.owner_notifications_enabled.checked = settings.owner_notifications_enabled === true;
+    var shipping = settings.shipping_config && typeof settings.shipping_config === 'object' ? settings.shipping_config : {};
+    setValue('shipping_mode', shipping.mode === 'flat_rate' ? 'flat_rate' : 'unconfigured');
+    setValue('shipping_amount', shipping.amount);
+    var tax = settings.tax_config && typeof settings.tax_config === 'object' ? settings.tax_config : {};
+    setValue('tax_mode', ['inclusive','exclusive'].indexOf(tax.mode) >= 0 ? tax.mode : 'unconfigured');
+    setValue('tax_rate', tax.rate);
     var safeSettings = (result.data || []).filter(function (setting) {
       return !/(secret|password|token|service.?role|private.?key)/i.test(setting.key);
     });
@@ -370,6 +387,48 @@
       try { value = JSON.stringify(setting.value); } catch (error) { value = '[unavailable]'; }
       return '<tr><td>'+escapeHTML(setting.key)+'</td><td>'+escapeHTML(value)+'</td><td>'+escapeHTML(setting.updated_at)+'</td></tr>';
     }).join('') || '<tr><td colspan="3">No non-secret settings are configured.</td></tr>';
+  }
+
+  async function saveStoreSettings(event) {
+    event.preventDefault();
+    var form = event.currentTarget;
+    var data = new FormData(form);
+    var shippingMode = String(data.get('shipping_mode') || 'unconfigured');
+    var shippingAmount = String(data.get('shipping_amount') || '').trim();
+    var taxMode = String(data.get('tax_mode') || 'unconfigured');
+    var taxRate = String(data.get('tax_rate') || '').trim();
+    var amount = shippingAmount === '' ? null : Number(shippingAmount);
+    var rate = taxRate === '' ? null : Number(taxRate);
+    if ((shippingMode === 'flat_rate' && (amount === null || !Number.isFinite(amount) || amount < 0)) ||
+        (taxMode !== 'unconfigured' && (rate === null || !Number.isFinite(rate) || rate < 0 || rate > 100)) ||
+        (taxMode === 'unconfigured' && rate !== null)) {
+      message('settings-message','Choose a valid shipping amount and tax treatment/rate. Saving these values will not enable checkout.');
+      return;
+    }
+    var payload = {
+      store_name:String(data.get('store_name') || '').trim() || null,
+      store_contact_email:String(data.get('store_contact_email') || '').trim().toLowerCase() || null,
+      store_contact_phone:String(data.get('store_contact_phone') || '').trim() || null,
+      store_contact_address:String(data.get('store_contact_address') || '').trim() || null,
+      notification_email:String(data.get('notification_email') || '').trim().toLowerCase() || null,
+      owner_notifications_enabled:data.has('owner_notifications_enabled'),
+      store_status:String(data.get('store_status') || 'unconfigured'),
+      shipping_config:{mode:shippingMode,amount:shippingMode === 'flat_rate' ? amount : null},
+      tax_config:{mode:taxMode,rate:taxMode === 'unconfigured' ? null : rate}
+    };
+    var button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    message('settings-message','Saving settings…');
+    try {
+      var result = await client.rpc('admin_update_store_settings',{p_settings:payload});
+      if (result.error) throw result.error;
+      message('settings-message','Store settings saved. Checkout remains subject to the separate pricing approval gate.');
+      await loadSettings();
+    } catch (error) {
+      message('settings-message','Store settings were not saved: '+error.message);
+    } finally {
+      button.disabled = false;
+    }
   }
 
   async function loadRequests() {
@@ -384,8 +443,12 @@
       return;
     }
     body.innerHTML = result.map(function (r) {
-      var detail = [r.gift_type,'Quantity '+r.quantity,'Budget '+(r.budget_min==null?'—':money(r.budget_min))+'–'+(r.budget_max==null?'—':money(r.budget_max)),'Required '+(r.required_by||'—'),r.preferred_colours,r.description,r.gift_message,(r.reference_storage_paths||[]).join(', ')].filter(Boolean).join(' · ');
-      return '<tr><td>'+escapeHTML(r.name)+'<br><small>'+escapeHTML(detail)+'</small></td><td>'+escapeHTML(r.email)+'<br><small>'+escapeHTML(r.phone||'')+'</small></td><td>'+escapeHTML(r.occasion||'—')+'</td><td><select data-request-status="'+escapeHTML(r.id)+'">'+optionList(['new','reviewing','quoted','accepted','in_production','completed','declined'],r.status)+'</select><label>Quote (₹)<input data-request-quote="'+escapeHTML(r.id)+'" type="number" min="0" step="0.01" value="'+escapeHTML(r.quoted_amount==null?'':r.quoted_amount)+'"></label><label>Quote notes<textarea data-request-quote-notes="'+escapeHTML(r.id)+'" maxlength="2000">'+escapeHTML(r.quote_notes||'')+'</textarea></label><label>Internal notes<textarea data-request-notes="'+escapeHTML(r.id)+'" maxlength="5000">'+escapeHTML(r.admin_notes||'')+'</textarea></label><button class="table-link" type="button" data-save-request="'+escapeHTML(r.id)+'">Save request</button></td></tr>';
+      var detail = [r.gift_type,'Quantity '+r.quantity,'Budget '+(r.budget_min==null?'—':money(r.budget_min))+'–'+(r.budget_max==null?'—':money(r.budget_max)),'Required '+(r.required_by||'—'),r.preferred_colours,r.description,r.gift_message].filter(Boolean).join(' · ');
+      var paths = Array.isArray(r.reference_storage_paths) ? r.reference_storage_paths : [];
+      var referenceButton = paths.length
+        ? '<button class="table-link" type="button" data-view-request-references="'+escapeHTML(JSON.stringify(paths))+'">View reference images ('+paths.length+')</button><span data-request-reference-links="'+escapeHTML(r.id)+'"></span>'
+        : '';
+      return '<tr><td>'+escapeHTML(r.name)+'<br><small>'+escapeHTML(detail)+'</small><br>'+referenceButton+'</td><td>'+escapeHTML(r.email)+'<br><small>'+escapeHTML(r.phone||'')+'</small></td><td>'+escapeHTML(r.occasion||'—')+'</td><td><select data-request-status="'+escapeHTML(r.id)+'">'+optionList(['new','reviewing','quoted','accepted','in_production','completed','declined'],r.status)+'</select><label>Quote (₹)<input data-request-quote="'+escapeHTML(r.id)+'" type="number" min="0" step="0.01" value="'+escapeHTML(r.quoted_amount==null?'':r.quoted_amount)+'"></label><label>Quote notes<textarea data-request-quote-notes="'+escapeHTML(r.id)+'" maxlength="2000">'+escapeHTML(r.quote_notes||'')+'</textarea></label><label>Internal notes<textarea data-request-notes="'+escapeHTML(r.id)+'" maxlength="5000">'+escapeHTML(r.admin_notes||'')+'</textarea></label><button class="table-link" type="button" data-save-request="'+escapeHTML(r.id)+'">Save request</button></td></tr>';
     }).join('') || '<tr><td colspan="4">No requests yet.</td></tr>';
   }
 
@@ -566,6 +629,7 @@
     $('close-customer-details').addEventListener('click',function(){ $('customer-details').hidden=true; });
     $('newsletter-search').addEventListener('input',renderNewsletter);
     $('newsletter-filter').addEventListener('change',renderNewsletter);
+    $('store-settings-form').addEventListener('submit',saveStoreSettings);
     $('close-order-details').addEventListener('click',function(){ $('order-details').hidden=true; });
     $('orders-table').addEventListener('click',function(event){
       var button=event.target.closest('[data-order-details]');
@@ -610,6 +674,35 @@
       select.disabled = false;
     });
     $('requests-table').addEventListener('click',async function(event){
+      var referencesButton=event.target.closest('[data-view-request-references]');
+      if(referencesButton){
+        referencesButton.disabled=true;
+        try {
+          var paths=JSON.parse(referencesButton.dataset.viewRequestReferences);
+          if(!Array.isArray(paths)||paths.length>3||paths.some(function(path){return typeof path!=='string'||path.length>500;}))throw new Error('Stored reference image paths are invalid.');
+          var links=[];
+          for(var index=0;index<paths.length;index++){
+            var signed=await client.storage.from('custom-gift-uploads').createSignedUrl(paths[index],300);
+            if(signed.error)throw signed.error;
+            links.push(signed.data.signedUrl);
+          }
+          var target=$('[data-request-reference-links="'+referencesButton.closest('tr').querySelector('[data-request-status]').dataset.requestStatus+'"]');
+          target.replaceChildren();
+          links.forEach(function(url,index){
+            var link=document.createElement('a');
+            link.href=url;
+            link.target='_blank';
+            link.rel='noopener noreferrer';
+            link.textContent=' Open image '+(index+1);
+            target.appendChild(link);
+          });
+        } catch(error) {
+          message('admin-message','Reference images could not be opened: '+error.message);
+        } finally {
+          referencesButton.disabled=false;
+        }
+        return;
+      }
       var button=event.target.closest('[data-save-request]');
       if(!button)return;
       var id=button.dataset.saveRequest;
