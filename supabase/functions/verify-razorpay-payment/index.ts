@@ -75,17 +75,16 @@ Deno.serve(async (req) => {
     return response({ error: "Store order is no longer awaiting payment" }, 409);
   }
 
-  const now = new Date().toISOString();
-  const { error: paymentUpdateError } = await admin.from("payments").update({
-    provider_payment_id: body.razorpay_payment_id, provider_signature: body.razorpay_signature,
-    status: "paid", paid_at: now, raw_response: rpPayment,
-  }).eq("id", payment.id).eq("status", "pending");
-  if (paymentUpdateError) return response({ error: "Payment status could not be saved" }, 500);
-
-  const { error: orderUpdateError } = await admin.from("orders").update({
-    payment_status: "paid", status: "confirmed", updated_at: now,
-  }).eq("id", order.id).eq("payment_status", "pending").eq("status", "pending_payment");
-  if (orderUpdateError) return response({ error: "Order confirmation could not be saved. Contact support with your payment ID." }, 500);
+  const { data: confirmed, error: confirmError } = await admin.rpc("confirm_razorpay_payment", {
+    p_payment_id: payment.id,
+    p_order_id: order.id,
+    p_provider_payment_id: body.razorpay_payment_id,
+    p_signature: body.razorpay_signature,
+    p_raw_response: rpPayment,
+  });
+  if (confirmError || confirmed !== true) {
+    return response({ error: "Payment was captured but order confirmation needs support review. Keep your payment ID for reference." }, 500);
+  }
 
   return response({ verified: true, order_id: order.id, payment_id: body.razorpay_payment_id });
 });
