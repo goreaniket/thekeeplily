@@ -212,6 +212,41 @@
       newArrival: false,
       createdAt: '2026-03-15'
     }
+    ,{
+      id: 'kl-live-payment-test',
+      sku: 'KL-LIVE-TEST-001',
+      name: 'Live Payment Test — ₹1',
+      slug: 'keeplily-live-payment-test',
+      category: 'Payment Test',
+      price: 1,
+      salePrice: null,
+      shortDescription: 'Temporary ₹1 checkout verification item. Not a physical product.',
+      description: 'This temporary item is only for an invited live payment verification. No physical product will be shipped. Please do not purchase unless you are carrying out the authorised store payment test.',
+      image: 'assets/keeplily-collection.png',
+      imagePosition: 'center',
+      additionalImages: [],
+      materials: 'Digital payment verification only',
+      dimensions: 'Not applicable',
+      colours: ['Not applicable'],
+      sizes: ['Standard'],
+      variants: ['Standard'],
+      variantPricing: { Standard: 0 },
+      customisable: false,
+      customisationCharge: 0,
+      customisationNotes: '',
+      stock: null,
+      availability: 'available',
+      madeToOrder: false,
+      preparationTime: 'Not applicable — payment test only.',
+      careInstructions: 'Not a physical product.',
+      badges: ['TEST ONLY'],
+      tags: ['payment-test'],
+      visible: false,
+      featured: false,
+      bestseller: false,
+      newArrival: false,
+      createdAt: '2026-10-31'
+    }
   ];
 
   window.KEEPLILY_CATEGORIES = ['Clay Charms', 'Candles', 'Phone Accessories', 'Cards', 'Wax Sachets'];
