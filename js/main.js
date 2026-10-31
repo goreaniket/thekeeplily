@@ -179,7 +179,7 @@
     document.getElementById('product-decrease').addEventListener('click', function () { state.quantity = Math.max(1, state.quantity - 1); document.getElementById('product-quantity').textContent = state.quantity; });
     document.getElementById('product-increase').addEventListener('click', function () { state.quantity += 1; document.getElementById('product-quantity').textContent = state.quantity; });
     document.getElementById('product-add').addEventListener('click', function () { cart.add(product.id, options()); openDrawer('cart-drawer'); showToast('Added to your little bag ♡'); });
-    document.getElementById('buy-now').addEventListener('click', function () { cart.clear(); cart.add(product.id, options()); window.location.href = 'checkout.html'; });
+    document.getElementById('buy-now').addEventListener('click', function () { cart.add(product.id, options()); window.location.href = 'checkout.html'; });
     renderProductGrid(document.getElementById('related-products'), products.filter(function (item) { return item.id !== product.id && item.visible; }).slice(0, 4));
     updatePrice();
   }
