@@ -348,7 +348,7 @@
   }
 
   async function syncLiveCatalogue() {
-    if (!window.supabase || !['home','shop','product'].includes(document.body.dataset.page || 'home')) return;
+    if (!window.supabase || !['home','shop','product','checkout'].includes(document.body.dataset.page || 'home')) return;
     try {
       var client = window.supabase.createClient('https://ucdnomryfppbpztdifwc.supabase.co','sb_publishable_vpppYo0jhiZceNamsEUaiQ_3AFlQJ7z');
       var result = await client.from('products').select('id,category_id,sku,slug,name,short_description,description,price,sale_price,status,is_featured,is_bestseller,is_new_arrival,is_customisable,customisation_charge,variants,tags,materials,dimensions,care_instructions,product_images(storage_path,is_primary)').eq('status','active').order('created_at',{ascending:false});
