@@ -382,6 +382,15 @@
         });
       });
       categories = categoryResult.data.map(function(c){return c.name;});
+      // Keep older browser carts working after live catalogue IDs replace bundled IDs.
+      var savedCart = cart.getCart();
+      savedCart.forEach(function(line){
+        var oldProduct = staticProducts.find(function(p){ return p.id === line.productId; });
+        if (!oldProduct) return;
+        var liveProduct = products.find(function(p){ return p.sku === oldProduct.sku; });
+        if (liveProduct) line.productId = liveProduct.id;
+      });
+      if (savedCart.length) cart.setCart(savedCart);
       window.KEEPLILY_PRODUCTS = products;
       window.KEEPLILY_CATEGORIES = categories;
     } catch (error) {
