@@ -180,7 +180,7 @@
     document.getElementById('product-increase').addEventListener('click', function () { state.quantity += 1; document.getElementById('product-quantity').textContent = state.quantity; });
     document.getElementById('product-add').addEventListener('click', function () { cart.add(product.id, options()); openDrawer('cart-drawer'); showToast('Added to your little bag ♡'); });
     document.getElementById('buy-now').addEventListener('click', function () { cart.add(product.id, options()); window.location.href = 'checkout.html'; });
-    renderProductGrid(document.getElementById('related-products'), products.filter(function (item) { return item.id !== product.id; }).slice(0, 4));
+    renderProductGrid(document.getElementById('related-products'), products.filter(function (item) { return item.id !== product.id && item.visible; }).slice(0, 4));
     updatePrice();
   }
 
@@ -378,7 +378,7 @@
           preparationTime:base.preparationTime || 'Preparation time will be confirmed before dispatch.',
           careInstructions:row.care_instructions || base.careInstructions || '',
           badges:base.badges || [], tags:row.tags || base.tags || [], visible:true,
-          featured:!!row.is_featured, bestseller:!!row.is_bestseller, newArrival:!!row.is_new_arrival, createdAt:row.created_at
+          featured:!!row.is_featured, bestseller:!!row.is_bestseller, newArrival:!!row.is_new_arrival, visible:row.sku !== 'KL-LIVE-TEST-001', createdAt:row.created_at
         });
       });
       categories = categoryResult.data.map(function(c){return c.name;});
