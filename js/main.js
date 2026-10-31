@@ -194,8 +194,32 @@
   }
 
   function renderContact() {
-    document.getElementById('main').innerHTML = '<section class="page-hero"><p class="eyebrow">SAY A LITTLE HELLO</p><h1>We’d love to hear from you. ♡</h1><p>Questions, gifting ideas or a note about an order—send it our way.</p></section><section class="contact-layout"><div class="contact-details"><h2>Come say hello</h2><a href="mailto:luniyasejal50@gmail.com">' + icon('mail') + '<span><small>Email</small>luniyasejal50@gmail.com</span></a><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">' + icon('camera') + '<span><small>Instagram</small>@the_keeplily.co</span></a><div><span class="place-icon">♡</span><span><small>Based in</small>Vapi, Gujarat, India</span></div></div><form class="contact-form" id="contact-form"><p class="form-preview-note">Preview only: this form validates locally and does not send email.</p><label>Name<input name="name" required autocomplete="name"></label><label>Email<input name="email" required type="email" autocomplete="email"></label><label>Phone <small>Optional</small><input name="phone" inputmode="tel" autocomplete="tel"></label><label>Subject<input name="subject" required></label><label>Message<textarea name="message" required></textarea></label><button class="button primary" type="submit">Save preview message ' + icon('arrow') + '</button></form></section>';
-    document.getElementById('contact-form').addEventListener('submit', function (event) { event.preventDefault(); event.currentTarget.outerHTML = '<div class="form-success"><span class="success-icon">' + icon('check') + '</span><h2>Thanks for reaching out ♡</h2><p>Live messaging will be enabled at launch.</p></div>'; });
+    document.getElementById('main').innerHTML = '<section class="page-hero"><p class="eyebrow">SAY A LITTLE HELLO</p><h1>We’d love to hear from you. ♡</h1><p>Questions, gifting ideas or a note about an order—send it our way.</p></section><section class="contact-layout"><div class="contact-details"><h2>Come say hello</h2><a href="mailto:luniyasejal50@gmail.com">' + icon('mail') + '<span><small>Email</small>luniyasejal50@gmail.com</span></a><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">' + icon('camera') + '<span><small>Instagram</small>@the_keeplily.co</span></a><div><span class="place-icon">♡</span><span><small>Based in</small>Vapi, Gujarat, India</span></div></div><form class="contact-form" id="contact-form"><p class="form-preview-note">Your message will be sent securely to our store inbox.</p><label>Name<input name="name" required maxlength="120" autocomplete="name"></label><label>Email<input name="email" required maxlength="254" type="email" autocomplete="email"></label><label>Phone <small>Optional</small><input name="phone" maxlength="40" inputmode="tel" autocomplete="tel"></label><label>Subject<input name="subject" required maxlength="180"></label><label>Message<textarea name="message" required maxlength="5000"></textarea></label><p class="contact-error" id="contact-error" role="alert" hidden></p><button class="button primary" type="submit">Send message ' + icon('arrow') + '</button></form></section>';
+    var form = document.getElementById('contact-form');
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      var button = form.querySelector('button[type="submit"]');
+      var error = document.getElementById('contact-error');
+      error.hidden = true;
+      button.disabled = true;
+      button.textContent = 'Sending…';
+      try {
+        if (!window.supabase) throw new Error('The message service is temporarily unavailable. Please email us directly.');
+        var db = window.supabase.createClient('https://ucdnomryfppbpztdifwc.supabase.co', 'sb_publishable_vpppYo0jhiZceNamsEUaiQ_3AFlQJ7z');
+        var data = Object.fromEntries(new FormData(form).entries());
+        var result = await db.from('contact_messages').insert({
+          name: data.name.trim(), email: data.email.trim(), phone: data.phone.trim() || null,
+          subject: data.subject.trim(), message: data.message.trim(), status: 'new'
+        });
+        if (result.error) throw result.error;
+        form.outerHTML = '<div class="form-success"><span class="success-icon">' + icon('check') + '</span><h2>Thanks for reaching out ♡</h2><p>Your message has been received. We’ll review it and get back to you.</p></div>';
+      } catch (err) {
+        error.textContent = err.message || 'Your message could not be sent. Please try again.';
+        error.hidden = false;
+        button.disabled = false;
+        button.innerHTML = 'Try again ' + icon('arrow');
+      }
+    });
   }
 
   function renderCustomGifts() {
