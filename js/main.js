@@ -92,7 +92,9 @@
     if (!target) return;
     target.innerHTML = list.length
       ? list.map(productCard).join('')
-      : '<div class="empty-state"><span class="empty-icon">✦</span><h3>No little finds here yet</h3><p>Try another category or clear the filters.</p><a href="shop.html" class="button secondary">View all gifts</a></div>';
+      : window.KEEPLILY_CATALOGUE_ERROR
+        ? '<div class="empty-state"><span class="empty-icon">✦</span><h3>The shop is temporarily unavailable</h3><p>Please try again shortly.</p><a href="shop.html" class="button secondary">Try again</a></div>'
+        : '<div class="empty-state"><span class="empty-icon">✦</span><h3>No little finds here yet</h3><p>Try another category or clear the filters.</p><a href="shop.html" class="button secondary">View all gifts</a></div>';
   }
 
   function renderHome() {
@@ -191,7 +193,15 @@
   function renderProduct() {
     var slug = new URLSearchParams(window.location.search).get('product');
     var product = products.find(function (item) { return item.slug === slug; });
-    if (!product) { renderNotFound(); return; }
+    if (!product) {
+      if (window.KEEPLILY_CATALOGUE_ERROR) {
+        document.title = 'Shop temporarily unavailable | TheKeeplily Co.';
+        document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">✦</span><h1>The shop is temporarily unavailable</h1><p>Please try again shortly.</p><a class="button primary" href="shop.html">Try again</a></section>';
+        return;
+      }
+      renderNotFound();
+      return;
+    }
     var galleryImages = [product.image].concat(product.additionalImages || []).filter(Boolean);
     document.title = product.name + ' | TheKeeplily Co.';
     var state = { variant: product.variants[0], quantity: 1 };
@@ -667,7 +677,12 @@
       categories = window.KEEPLILY_CATEGORIES || [];
       init();
     }).catch(function (error) {
-      console.warn('Keeplily catalogue initialisation failed; opening the local preview.', error);
+      console.error('Keeplily catalogue initialisation failed.', error);
+      window.KEEPLILY_LIVE_CATALOGUE = false;
+      window.KEEPLILY_CATALOGUE_ERROR = 'The shop is temporarily unavailable.';
+      window.KEEPLILY_PRODUCTS = [];
+      products = [];
+      categories = window.KEEPLILY_CATEGORIES || [];
       init();
     });
     else init();

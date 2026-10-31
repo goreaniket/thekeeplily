@@ -227,18 +227,17 @@
   // the live published catalogue replaces it before the storefront renders.
   var backendConfig = window.KEEPLILY_SUPABASE || {};
   window.KEEPLILY_LIVE_CATALOGUE = false;
+  window.KEEPLILY_CATALOGUE_ERROR = null;
   window.KEEPLILY_PRODUCTS_READY = Promise.resolve().then(async function () {
-    if (!window.supabase || !backendConfig.url || !backendConfig.anonKey) return;
+    if (!backendConfig.url || !backendConfig.anonKey) return;
+    if (!window.supabase) throw new Error('The Supabase client library did not load.');
     var client = window.KEEPLILY_SUPABASE_CLIENT || window.supabase.createClient(backendConfig.url, backendConfig.anonKey);
     window.KEEPLILY_SUPABASE_CLIENT = client;
     var result = await client.from('products')
       .select('*, categories(name), product_images(storage_path,alt_text,is_primary,sort_order)')
       .eq('status', 'active')
       .order('created_at', { ascending: false });
-    if (result.error) {
-      console.warn('Keeplily live catalogue unavailable; using preview products.', result.error.message);
-      return;
-    }
+    if (result.error) throw result.error;
     window.KEEPLILY_LIVE_CATALOGUE = true;
     window.KEEPLILY_PRODUCTS = (result.data || []).map(function (row) {
       var images = (row.product_images || []).slice().sort(function (a,b) {
@@ -281,6 +280,12 @@
     if (!categoryResult.error && categoryResult.data && categoryResult.data.length) {
       window.KEEPLILY_CATEGORIES = categoryResult.data.map(function (item) { return item.name; });
     }
+  }).catch(function (error) {
+    if (!backendConfig.url || !backendConfig.anonKey) throw error;
+    window.KEEPLILY_LIVE_CATALOGUE = false;
+    window.KEEPLILY_PRODUCTS = [];
+    window.KEEPLILY_CATALOGUE_ERROR = 'The shop is temporarily unavailable.';
+    console.error('Keeplily live catalogue could not be loaded.', error);
   });
 
 })();

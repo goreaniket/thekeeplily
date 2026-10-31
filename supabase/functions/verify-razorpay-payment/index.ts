@@ -59,9 +59,13 @@ Deno.serve(async (req) => {
     .eq("id", body.order_id).eq("user_id", user.id).maybeSingle();
   if (!order) return response(req, { error: "Order not found" }, 404);
 
-  const { data: payment } = await admin.from("payments").select("id, provider_order_id, amount, currency, status")
+  const { data: payment } = await admin.from("payments")
+    .select("id, provider_order_id, provider_payment_id, amount, currency, status")
     .eq("order_id", order.id).eq("provider", "razorpay").eq("provider_order_id", body.razorpay_order_id).maybeSingle();
   if (!payment) return response(req, { error: "Payment order does not match this store order" }, 409);
+  if (order.currency !== "INR" || payment.currency !== "INR") {
+    return response(req, { error: "Only INR payments are supported" }, 409);
+  }
 
   const expected = await hmac(payment.provider_order_id + "|" + body.razorpay_payment_id, keySecret);
   if (!constantTimeEqual(expected, body.razorpay_signature)) return response(req, { error: "Payment signature verification failed" }, 400);
@@ -73,13 +77,17 @@ Deno.serve(async (req) => {
   if (!rp.ok) return response(req, { error: "Could not confirm payment with Razorpay" }, 502);
 
   const expectedAmount = Math.round(Number(order.grand_total) * 100);
-  if (rpPayment.order_id !== payment.provider_order_id || rpPayment.amount !== expectedAmount ||
+  if (rpPayment.id !== body.razorpay_payment_id || rpPayment.order_id !== payment.provider_order_id || rpPayment.amount !== expectedAmount ||
       rpPayment.currency !== "INR" || rpPayment.status !== "captured") {
     return response(req, { error: "Razorpay payment is not captured for the expected amount and order" }, 409);
   }
 
-  if (order.payment_status === "paid" && payment.status === "paid") {
+  if (order.payment_status === "paid" && payment.status === "paid" &&
+      payment.provider_payment_id === body.razorpay_payment_id) {
     return response(req, { verified: true, already_verified: true, order_id: order.id });
+  }
+  if (order.payment_status === "paid" || payment.status === "paid") {
+    return response(req, { error: "This order has already been paid with a different payment" }, 409);
   }
   if (order.payment_status !== "pending" || order.status !== "pending_payment") {
     return response(req, { error: "Store order is no longer awaiting payment" }, 409);
