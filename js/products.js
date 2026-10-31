@@ -246,7 +246,7 @@
       var primary = images[0];
       var imageUrl = primary
         ? client.storage.from('product-images').getPublicUrl(primary.storage_path).data.publicUrl
-        : 'assets/keeplily-collection.png';
+        : '';
       var variants = Array.isArray(row.variants) && row.variants.length
         ? row.variants.map(function (item) { return typeof item === 'string' ? item : item.name; }).filter(Boolean)
         : ['One size'];

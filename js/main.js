@@ -36,6 +36,19 @@
     return product.salePrice === null || product.salePrice === undefined ? product.price : product.salePrice;
   }
 
+  function productImageMarkup(product, alt, className, id) {
+    var idAttribute = id ? ' id="' + escapeHTML(id) + '"' : '';
+    if (!product.image) {
+      var dimensions = className === 'cart-image-placeholder'
+        ? 'width:82px;height:98px;border-radius:12px;'
+        : className === 'summary-image-placeholder'
+          ? 'width:55px;height:65px;border-radius:9px;'
+          : 'width:100%;height:100%;';
+      return '<span class="product-image-placeholder" style="display:grid;place-items:center;background:linear-gradient(145deg,#f8e9e5,#f1dcd8);color:#78615c;font:italic 14px Georgia,serif;text-align:center;padding:12px;' + dimensions + '"' + idAttribute + (alt ? ' role="img" aria-label="' + escapeHTML(alt) + '"' : ' aria-hidden="true"') + '>Photo coming soon</span>';
+    }
+    return '<img' + idAttribute + ' src="' + escapeHTML(product.image) + '" alt="' + escapeHTML(alt) + '" style="object-position:' + escapeHTML(product.imagePosition || 'center') + '" loading="lazy">';
+  }
+
   function icon(name) {
     var paths = {
       menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
@@ -85,7 +98,7 @@
 
   function productCard(product) {
     var wished = cart.getWishlist().indexOf(product.id) >= 0;
-    return '<article class="product-card" data-product-card="' + escapeHTML(product.id) + '"><div class="product-image-wrap"><a href="product.html?product=' + encodeURIComponent(product.slug) + '"><img src="' + product.image + '" alt="' + escapeHTML(product.name) + '" style="object-position:' + escapeHTML(product.imagePosition) + '" loading="lazy"></a><div class="badge-row">' + product.badges.slice(0, 2).map(function (badge) { return '<span>' + escapeHTML(badge) + '</span>'; }).join('') + '</div><button class="wish-button' + (wished ? ' active' : '') + '" type="button" data-wish="' + escapeHTML(product.id) + '" aria-label="' + (wished ? 'Remove from' : 'Add to') + ' wishlist">' + (wished ? '♥' : '♡') + '</button></div><div class="product-info"><p>' + escapeHTML(product.category) + '</p><a href="product.html?product=' + encodeURIComponent(product.slug) + '"><h3>' + escapeHTML(product.name) + '</h3></a><div class="price-row"><strong>' + window.formatINR(productPrice(product)) + '</strong>' + (product.salePrice ? '<del>' + window.formatINR(product.price) + '</del>' : '') + '</div><div class="card-actions"><button type="button" data-add="' + escapeHTML(product.id) + '">' + (product.variants.length > 1 ? 'Quick add' : 'Add to bag') + ' ' + icon('bag') + '</button><a href="product.html?product=' + encodeURIComponent(product.slug) + '" aria-label="View ' + escapeHTML(product.name) + '">' + icon('arrow') + '</a></div></div></article>';
+    return '<article class="product-card" data-product-card="' + escapeHTML(product.id) + '"><div class="product-image-wrap"><a href="product.html?product=' + encodeURIComponent(product.slug) + '">' + productImageMarkup(product, product.name, '', '') + '</a><div class="badge-row">' + product.badges.slice(0, 2).map(function (badge) { return '<span>' + escapeHTML(badge) + '</span>'; }).join('') + '</div><button class="wish-button' + (wished ? ' active' : '') + '" type="button" data-wish="' + escapeHTML(product.id) + '" aria-label="' + (wished ? 'Remove from' : 'Add to') + ' wishlist">' + (wished ? '♥' : '♡') + '</button></div><div class="product-info"><p>' + escapeHTML(product.category) + '</p><a href="product.html?product=' + encodeURIComponent(product.slug) + '"><h3>' + escapeHTML(product.name) + '</h3></a><div class="price-row"><strong>' + window.formatINR(productPrice(product)) + '</strong>' + (product.salePrice ? '<del>' + window.formatINR(product.price) + '</del>' : '') + '</div><div class="card-actions"><button type="button" data-add="' + escapeHTML(product.id) + '">' + (product.variants.length > 1 ? 'Quick add' : 'Add to bag') + ' ' + icon('bag') + '</button><a href="product.html?product=' + encodeURIComponent(product.slug) + '" aria-label="View ' + escapeHTML(product.name) + '">' + icon('arrow') + '</a></div></div></article>';
   }
 
   function renderProductGrid(target, list) {
@@ -94,6 +107,8 @@
       ? list.map(productCard).join('')
       : window.KEEPLILY_CATALOGUE_ERROR
         ? '<div class="empty-state"><span class="empty-icon">✦</span><h3>The shop is temporarily unavailable</h3><p>Please try again shortly.</p><a href="shop.html" class="button secondary">Try again</a></div>'
+        : window.KEEPLILY_LIVE_CATALOGUE && products.length === 0
+          ? '<div class="empty-state"><span class="empty-icon">✦</span><h3>Our live collection is being prepared</h3><p>Please check back soon for available products.</p></div>'
         : '<div class="empty-state"><span class="empty-icon">✦</span><h3>No little finds here yet</h3><p>Try another category or clear the filters.</p><a href="shop.html" class="button secondary">View all gifts</a></div>';
   }
 
@@ -199,15 +214,23 @@
         document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">✦</span><h1>The shop is temporarily unavailable</h1><p>Please try again shortly.</p><a class="button primary" href="shop.html">Try again</a></section>';
         return;
       }
+      if (window.KEEPLILY_LIVE_CATALOGUE) {
+        document.title = 'Product unavailable | TheKeeplily Co.';
+        document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">✦</span><h1>This product is not available right now</h1><p>Browse the live collection to see what is currently available.</p><a class="button primary" href="shop.html">Browse the shop</a></section>';
+        return;
+      }
       renderNotFound();
       return;
     }
     var galleryImages = [product.image].concat(product.additionalImages || []).filter(Boolean);
+    var galleryMarkup = galleryImages.length
+      ? '<div class="product-gallery"><div class="main-product-image">' + productImageMarkup({ image: galleryImages[0], imagePosition: product.imagePosition }, product.name, '', 'main-product-image') + '<span class="zoom-note">' + icon('search') + ' A closer look</span></div><div class="thumb-row">' + galleryImages.map(function (image, index) { return '<button class="' + (index === 0 ? 'active' : '') + '" type="button" data-gallery-image="' + index + '" aria-label="Show product image ' + (index + 1) + '">' + productImageMarkup({ image: image, imagePosition: product.imagePosition }, product.name + ', image ' + (index + 1), '', '') + '</button>'; }).join('') + '</div></div>'
+      : '<div class="product-gallery"><div class="main-product-image">' + productImageMarkup(product, 'Product photo unavailable for ' + product.name, 'product-image-placeholder', '') + '</div></div>';
     document.title = product.name + ' | TheKeeplily Co.';
     var state = { variant: product.variants[0], quantity: 1 };
     document.getElementById('main').innerHTML =
       '<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Home</a><span>/</span><a href="shop.html">Shop</a><span>/</span><span>' + escapeHTML(product.name) + '</span></nav>' +
-      '<section class="product-page"><div class="product-gallery"><div class="main-product-image"><img id="main-product-image" src="' + escapeHTML(galleryImages[0] || product.image) + '" alt="' + escapeHTML(product.name) + '" style="object-position:' + escapeHTML(product.imagePosition) + '"><span class="zoom-note">' + icon('search') + ' A closer look</span></div><div class="thumb-row">' + galleryImages.map(function (image, index) { return '<button class="' + (index === 0 ? 'active' : '') + '" type="button" data-gallery-image="' + index + '" aria-label="Show product image ' + (index + 1) + '"><img src="' + escapeHTML(image) + '" alt="' + escapeHTML(product.name) + ', image ' + (index + 1) + '" style="object-position:' + escapeHTML(product.imagePosition) + '"></button>'; }).join('') + '</div></div>' +
+      '<section class="product-page">' + galleryMarkup +
       '<div class="product-panel"><p class="eyebrow">' + escapeHTML(product.category.toUpperCase()) + '</p><div class="product-title-row"><h1>' + escapeHTML(product.name) + '</h1><button class="wish-button' + (cart.getWishlist().indexOf(product.id) >= 0 ? ' active' : '') + '" type="button" data-wish="' + product.id + '" aria-label="Toggle wishlist">' + (cart.getWishlist().indexOf(product.id) >= 0 ? '♥' : '♡') + '</button></div><div class="detail-price"><strong id="product-price"></strong>' + (product.madeToOrder ? '<span>Made to order</span>' : '<span>Available</span>') + '</div><p class="detail-lead">' + escapeHTML(product.shortDescription) + '</p><div class="stock-note">' + (product.stock === null ? 'Availability confirmed with your order' : product.stock + ' in stock') + '</div>' +
       '<div class="choice-block"><span>Choose an option</span><div class="variant-row">' + product.variants.map(function (variant, index) { return '<button class="' + (index === 0 ? 'active' : '') + '" type="button" data-variant="' + escapeHTML(variant) + '">' + escapeHTML(variant) + (product.variantPricing[variant] ? ' +' + window.formatINR(product.variantPricing[variant]) : '') + '</button>'; }).join('') + '</div></div>' +
       (product.customisable ? '<div class="personalise-box"><label class="check-line"><input id="customisation-toggle" type="checkbox"><span><strong>Make it personal</strong>' + (product.customisationCharge ? ' +' + window.formatINR(product.customisationCharge) : ' Included') + '</span></label><label id="personalisation-field" hidden>Personalisation details<textarea id="personalisation" maxlength="180" placeholder="' + escapeHTML(product.customisationNotes) + '"></textarea><small><span id="personalisation-count">0</span>/180 characters</small></label></div>' : '') +
@@ -351,7 +374,7 @@
       return;
     }
 
-    client.auth.getSession().then(function (sessionResult) {
+    client.auth.getSession().then(async function (sessionResult) {
       if (sessionResult.error) {
         document.getElementById('main').innerHTML = '<section class="empty-page"><h1>Your session could not be checked</h1><p>Please sign in again before placing an order.</p><a class="button primary" href="account.html?return=checkout.html">Sign in</a></section>';
         return;
@@ -369,6 +392,18 @@
       });
       if (missingProduct) {
         document.getElementById('main').innerHTML = '<section class="empty-page"><h1>Your cart needs a refresh</h1><p>A product in your saved cart is no longer available in the live catalogue. Please update your bag before ordering.</p><a class="button primary" href="shop.html">Review the collection</a></section>';
+        return;
+      }
+
+      var pricingApproval;
+      try {
+        pricingApproval = await client.rpc('checkout_pricing_is_approved');
+      } catch (error) {
+        console.error('Checkout pricing approval could not be checked.', error);
+        pricingApproval = { error: error };
+      }
+      if (pricingApproval.error || pricingApproval.data !== true) {
+        document.getElementById('main').innerHTML = '<section class="empty-page"><span class="empty-icon">♡</span><h1>Checkout is temporarily paused</h1><p>Delivery charges and tax treatment must be confirmed before we can accept an order. Your cart remains saved.</p><a class="button secondary" href="shop.html">Keep browsing</a></section>';
         return;
       }
 
@@ -566,7 +601,7 @@
 
   function renderOrderSummary(target) {
     var lines = cart.getCart();
-    target.innerHTML = '<h2>Your order</h2>' + lines.map(function (line) { var product = cart.productById(line.productId); if (!product) return ''; return '<div class="summary-line"><img src="' + product.image + '" alt="" style="object-position:' + escapeHTML(product.imagePosition) + '"><div><strong>' + escapeHTML(product.name) + '</strong><small>' + escapeHTML(line.variant) + ' · Qty ' + line.quantity + (line.personalisation ? ' · ' + escapeHTML(line.personalisation) : '') + (line.giftMessage ? ' · Gift note: ' + escapeHTML(line.giftMessage) : '') + '</small></div><span>' + window.formatINR(cart.unitPrice(line) * line.quantity) + '</span></div>'; }).join('') + '<dl><div><dt>Subtotal</dt><dd>' + window.formatINR(cart.subtotal()) + '</dd></div><div><dt>Customisation</dt><dd>Included above</dd></div><div><dt>Shipping</dt><dd>To be confirmed</dd></div><div class="total"><dt>Total</dt><dd>' + window.formatINR(cart.subtotal()) + '</dd></div></dl>';
+    target.innerHTML = '<h2>Your order</h2>' + lines.map(function (line) { var product = cart.productById(line.productId); if (!product) return ''; return '<div class="summary-line">' + productImageMarkup(product, '', 'summary-image-placeholder', '') + '<div><strong>' + escapeHTML(product.name) + '</strong><small>' + escapeHTML(line.variant) + ' · Qty ' + line.quantity + (line.personalisation ? ' · ' + escapeHTML(line.personalisation) : '') + (line.giftMessage ? ' · Gift note: ' + escapeHTML(line.giftMessage) : '') + '</small></div><span>' + window.formatINR(cart.unitPrice(line) * line.quantity) + '</span></div>'; }).join('') + '<dl><div><dt>Subtotal</dt><dd>' + window.formatINR(cart.subtotal()) + '</dd></div><div><dt>Customisation</dt><dd>Included above</dd></div><div><dt>Shipping</dt><dd>To be confirmed</dd></div><div class="total"><dt>Total</dt><dd>' + window.formatINR(cart.subtotal()) + '</dd></div></dl>';
   }
 
   var policies = {
@@ -594,7 +629,7 @@
       target.innerHTML = '<div class="cart-empty"><span class="empty-icon">♡</span><h3>Your bag feels a little light</h3><p>Find a handmade piece for someone special—or for you.</p><a href="shop.html" class="button primary">Find a little favourite</a></div>';
       return;
     }
-    target.innerHTML = '<div class="cart-lines">' + lines.map(function (line) { var product = cart.productById(line.productId); if (!product) return ''; return '<article><img src="' + product.image + '" alt="" style="object-position:' + escapeHTML(product.imagePosition) + '"><div><strong>' + escapeHTML(product.name) + '</strong><small>' + escapeHTML(line.variant) + (line.personalisation ? ' · ' + escapeHTML(line.personalisation) : '') + (line.giftMessage ? ' · Gift note: ' + escapeHTML(line.giftMessage) : '') + '</small><span>' + window.formatINR(cart.unitPrice(line)) + '</span><div class="mini-quantity"><button type="button" data-cart-delta="-1" data-cart-key="' + escapeHTML(line.key) + '" aria-label="Decrease">' + icon('minus') + '</button><span>' + line.quantity + '</span><button type="button" data-cart-delta="1" data-cart-key="' + escapeHTML(line.key) + '" aria-label="Increase">' + icon('plus') + '</button></div></div><button class="remove-line" type="button" data-cart-remove="' + escapeHTML(line.key) + '" aria-label="Remove ' + escapeHTML(product.name) + '">' + icon('close') + '</button></article>'; }).join('') + '</div><div class="cart-footer"><div><span>Subtotal</span><strong>' + window.formatINR(cart.subtotal()) + '</strong></div><p>Shipping is confirmed before ordering.</p><a href="checkout.html" class="button primary full">Checkout preview ' + icon('arrow') + '</a><button type="button" class="continue-button" data-drawer-close>Continue shopping</button></div>';
+    target.innerHTML = '<div class="cart-lines">' + lines.map(function (line) { var product = cart.productById(line.productId); if (!product) return ''; return '<article>' + productImageMarkup(product, '', 'cart-image-placeholder', '') + '<div><strong>' + escapeHTML(product.name) + '</strong><small>' + escapeHTML(line.variant) + (line.personalisation ? ' · ' + escapeHTML(line.personalisation) : '') + (line.giftMessage ? ' · Gift note: ' + escapeHTML(line.giftMessage) : '') + '</small><span>' + window.formatINR(cart.unitPrice(line)) + '</span><div class="mini-quantity"><button type="button" data-cart-delta="-1" data-cart-key="' + escapeHTML(line.key) + '" aria-label="Decrease">' + icon('minus') + '</button><span>' + line.quantity + '</span><button type="button" data-cart-delta="1" data-cart-key="' + escapeHTML(line.key) + '" aria-label="Increase">' + icon('plus') + '</button></div></div><button class="remove-line" type="button" data-cart-remove="' + escapeHTML(line.key) + '" aria-label="Remove ' + escapeHTML(product.name) + '">' + icon('close') + '</button></article>'; }).join('') + '</div><div class="cart-footer"><div><span>Subtotal</span><strong>' + window.formatINR(cart.subtotal()) + '</strong></div><p>Shipping is confirmed before ordering.</p><a href="checkout.html" class="button primary full">Checkout preview ' + icon('arrow') + '</a><button type="button" class="continue-button" data-drawer-close>Continue shopping</button></div>';
   }
 
   function updateCartCount() {

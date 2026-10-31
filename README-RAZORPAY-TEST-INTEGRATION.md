@@ -17,9 +17,12 @@ A closed or failed checkout leaves the order pending and retains the cart. Retry
 
 Apply this migration in the existing Supabase project after the migrations already listed in `README-ECOMMERCE-SETUP.md`:
 
+- `supabase/migrations/20261031115000_checkout_pricing_gate.sql`
 - `supabase/migrations/20261031120000_razorpay_payment_indexes.sql`
 
 It adds a uniqueness guard for one pending Razorpay attempt per order and a service-role-only SQL function that updates the payment and order atomically. Review existing data for duplicate pending Razorpay payment rows before applying the unique index; resolve any duplicates deliberately rather than deleting payment history.
+
+The checkout pricing gate is reset to blocked by its migration. It must remain blocked until the owner approves shipping/tax treatment and the server-side order total reflects it. The current order RPC sets shipping and tax to zero, so it only charges the item subtotal; changing the approval flag alone does not add these amounts.
 
 ## Configure Edge Function secrets
 

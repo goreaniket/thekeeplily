@@ -1,6 +1,6 @@
 # TheKeeplily Co. — Supabase and backend setup
 
-The storefront remains plain HTML, CSS and JavaScript. This branch adds a Supabase-backed catalogue, customer accounts, public request forms, an authenticated admin panel, and an unpaid order foundation. It does not integrate Razorpay or Delhivery.
+The storefront remains plain HTML, CSS and JavaScript. This branch adds a Supabase-backed catalogue, customer accounts, public request forms, an authenticated admin panel, an order foundation, and a Razorpay Test Mode payment flow. Delhivery is not integrated.
 
 ## Supabase configuration
 
@@ -19,6 +19,7 @@ For a **new Supabase project**, run these files in the SQL Editor in order:
 2. `supabase/migrations/20261030_contact_messages.sql` — contact inbox table and initial policies.
 3. `supabase/migrations/20261030110000_backend_foundation.sql` — additive customer records, inventory audit log, public form RPCs, and secure order/status RPCs. This migration is designed to be safe to run again.
 4. `supabase/migrations/20261030212100_rls_access_hardening.sql` — rebuilds table policies and grants so only active catalogue data is public and private records cannot be read with the anon key. Run after the backend migration.
+5. `supabase/migrations/20261031115000_checkout_pricing_gate.sql` — blocks checkout and pending-order creation until the owner approves the delivery/tax treatment and the server-side total matches it. The setting defaults to false.
 
 The repository cannot show whether `20261030_contact_messages.sql` has already been executed in the hosted database. This must be checked in the Supabase dashboard. If its table and policies already exist, the file is safe to run again: it uses `CREATE TABLE IF NOT EXISTS` and replaces its named policies/trigger. Do not treat a file existing locally as proof that a migration ran.
 
@@ -41,9 +42,11 @@ The access-hardening migration removes existing policies on the affected tables 
 3. Sign-in sessions use the Supabase browser SDK's persisted session. Password reset uses the same page with a secure recovery link.
 4. Profiles, marketing preference, addresses, order history and owned custom-gift requests are restricted by RLS to the signed-in user. Expired or missing sessions cannot access customer order data.
 
-Customers may create unpaid orders only after signing in. The order RPC locks product rows, validates active products/options and current database prices, checks aggregate stock, writes the order/items, deducts tracked stock, and records inventory changes in one transaction. Repeating the same request key returns the existing order instead of decrementing stock twice.
+Customers may create unpaid orders only after signing in and after the checkout pricing gate is approved. The order RPC locks product rows, validates active products/options and current database prices, checks aggregate stock, writes the order/items, deducts tracked stock, and records inventory changes in one transaction. Repeating the same request key returns the existing order instead of decrementing stock twice.
 
-No shipping charge, tax, payment, refund or delivery policy is configured. Checkout labels the current total as excluding shipping and leaves payment pending; it does not mark an order paid. Tracked stock is deducted when the unpaid order is created. There is intentionally no automatic expiry/restock policy for abandoned or cancelled orders; review unpaid orders and adjust stock deliberately from the admin product editor until the owner sets that policy.
+No shipping charge, tax, refund or delivery policy is configured. The order RPC currently sets shipping and tax to zero, so its grand total is only the item subtotal; the Razorpay Test Mode flow can charge that total. Do not accept customer payments until the owner has approved the complete pricing and fulfillment policies and the server-side order calculation reflects them. Tracked stock is deducted when an unpaid order is created. There is intentionally no automatic expiry/restock policy for abandoned or cancelled orders; review unpaid orders and adjust stock deliberately from the admin product editor until the owner sets that policy.
+
+The checkout pricing gate migration deliberately resets `store_settings.checkout_pricing_approved` to `false` and installs a database trigger that rejects pending orders while it is false. Keep it false until approved shipping/tax rules are implemented in the server-side total calculation; changing the flag alone does not add shipping or tax.
 
 ## Store owner admin setup
 
@@ -81,6 +84,7 @@ Serve the repository with a local static HTTP server (rather than `file://`) and
 - profile/address isolation and customer order history;
 - contact, newsletter and custom-gift submission;
 - checkout rejects anonymous access and creates only unpaid orders;
+- checkout remains blocked until its pricing approval setting is enabled after the final total is configured;
 - replaying one idempotency key does not create a second order or stock deduction;
 - customer requests cannot read another customer's records or change order/payment fields;
 - non-admin users cannot enter `/admin/`, while the promoted owner can manage products, requests and order status.
@@ -93,10 +97,10 @@ Supabase SQL Editor/database access is required to validate SQL execution and RL
 - Check migration history in the Supabase dashboard; run the missing migrations in the order above.
 - Create/confirm the owner Auth account and run the owner-promotion SQL.
 - Exercise database/RLS/auth flows against that project.
-- Decide shipping/tax/payment/cancellation/restock policies before accepting real payments or treating order totals as final.
-- Razorpay, Delhivery, transactional email and production deployment are not implemented here.
+- Decide shipping/tax/cancellation/restock policies before accepting payments or treating order totals as final.
+- Razorpay is configured for Test Mode only. Delhivery, transactional email and production deployment are not implemented here.
 
 
 ## Razorpay checkout integration
 
-The first Test Mode implementation is documented separately in `README-RAZORPAY-TEST-INTEGRATION.md`. It uses the existing orders/payments schema and adds two Supabase Edge Functions. Apply `supabase/migrations/20261031120000_razorpay_payment_indexes.sql`, configure the Razorpay Test credentials only as Supabase Edge Function secrets, deploy both functions, and complete the documented Test Mode checklist before considering a production merge. No Live Mode credentials or production deployment are included.
+The first Test Mode implementation is documented separately in `README-RAZORPAY-TEST-INTEGRATION.md`. It uses the existing orders/payments schema and adds two Supabase Edge Functions. Apply the checkout pricing gate and `supabase/migrations/20261031120000_razorpay_payment_indexes.sql`, configure the Razorpay Test credentials only as Supabase Edge Function secrets, deploy both functions, and complete the documented Test Mode checklist before considering a production merge. No Live Mode credentials or production deployment are included.
