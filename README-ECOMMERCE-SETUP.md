@@ -95,3 +95,8 @@ Supabase SQL Editor/database access is required to validate SQL execution and RL
 - Exercise database/RLS/auth flows against that project.
 - Decide shipping/tax/payment/cancellation/restock policies before accepting real payments or treating order totals as final.
 - Razorpay, Delhivery, transactional email and production deployment are not implemented here.
+
+
+## Razorpay checkout integration
+
+The first Test Mode implementation is documented separately in `README-RAZORPAY-TEST-INTEGRATION.md`. It uses the existing orders/payments schema and adds two Supabase Edge Functions. Apply `supabase/migrations/20261031120000_razorpay_payment_indexes.sql`, configure the Razorpay Test credentials only as Supabase Edge Function secrets, deploy both functions, and complete the documented Test Mode checklist before considering a production merge. No Live Mode credentials or production deployment are included.
