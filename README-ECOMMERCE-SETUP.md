@@ -22,6 +22,9 @@ For a **new Supabase project**, run these files in the SQL Editor in order:
 3. `supabase/migrations/20261030110000_backend_foundation.sql` — additive customer records, inventory audit log, public form RPCs, and secure order/status RPCs. This migration is designed to be safe to run again.
 4. `supabase/migrations/20261030212100_rls_access_hardening.sql` — rebuilds table policies and grants so only active catalogue data is public and private records cannot be read with the anon key. Run after the backend migration.
 5. `supabase/migrations/20261031115000_checkout_pricing_gate.sql` — blocks checkout and pending-order creation until the owner approves the delivery/tax treatment and the server-side total matches it. The setting defaults to false.
+6. `supabase/migrations/20261031120000_razorpay_payment_indexes.sql` — adds payment uniqueness guards and the service-role-only payment confirmation RPC.
+7. `supabase/migrations/20261031125000_add_payment_review_order_status.sql` — adds a visible review state for a captured payment that cannot safely be fulfilled.
+8. `supabase/migrations/20261031130000_payment_inventory_atomic.sql` — restores prior unpaid-order deductions once, keeps new unpaid orders from changing stock, and deducts tracked stock atomically only after verified payment.
 
 The repository cannot show whether `20261030_contact_messages.sql` has already been executed in the hosted database. This must be checked in the Supabase dashboard. If its table and policies already exist, the file is safe to run again: it uses `CREATE TABLE IF NOT EXISTS` and replaces its named policies/trigger. Do not treat a file existing locally as proof that a migration ran.
 
@@ -44,9 +47,9 @@ The access-hardening migration removes existing policies on the affected tables 
 3. Sign-in sessions use the Supabase browser SDK's persisted session. Password reset uses the same page with a secure recovery link.
 4. Profiles, marketing preference, addresses, order history and owned custom-gift requests are restricted by RLS to the signed-in user. Expired or missing sessions cannot access customer order data.
 
-Customers may create unpaid orders only after signing in and after the checkout pricing gate is approved. The order RPC locks product rows, validates active products/options and current database prices, checks aggregate stock, writes the order/items, deducts tracked stock, and records inventory changes in one transaction. Repeating the same request key returns the existing order instead of decrementing stock twice.
+Customers may create unpaid orders only after signing in and after the checkout pricing gate is approved. The order RPC locks product rows, validates active products/options and current database prices, checks aggregate stock, and writes the order/items without changing inventory. Only the server-side payment confirmation RPC may deduct tracked stock, after Razorpay capture, amount, currency, order mapping, and signature have been verified. It locks product rows, rechecks availability, and records stock changes atomically. Duplicate callbacks do not deduct twice. If a captured payment can no longer be fulfilled safely, the payment is recorded as paid, stock is left unchanged, and the order enters `payment_review` for an administrator; the customer is told not to pay again.
 
-No shipping charge, tax, refund or delivery policy is configured. The order RPC currently sets shipping and tax to zero, so its grand total is only the item subtotal; the Razorpay Test Mode flow can charge that total. Do not accept customer payments until the owner has approved the complete pricing and fulfillment policies and the server-side order calculation reflects them. Tracked stock is deducted when an unpaid order is created. There is intentionally no automatic expiry/restock policy for abandoned or cancelled orders; review unpaid orders and adjust stock deliberately from the admin product editor until the owner sets that policy.
+Unpaid, failed, cancelled, and abandoned orders do not change stock. No temporary reservation is used. Cancelled or refunded paid orders do not automatically restore inventory; an authorized administrator must make any approved adjustment, which is audit-logged. No shipping charge or GST treatment is configured. The order RPC currently sets shipping and tax to zero, so its grand total is only the item subtotal. Do not enable payments until the owner/CA policies are approved and server-side totals implement them.
 
 The checkout pricing gate migration deliberately resets `store_settings.checkout_pricing_approved` to `false` and installs a database trigger that rejects pending orders while it is false. Keep it false until approved shipping/tax rules are implemented in the server-side total calculation; changing the flag alone does not add shipping or tax.
 
@@ -81,7 +84,7 @@ Get-ChildItem .\js\*.js, .\admin\*.js -ErrorAction SilentlyContinue | ForEach-Ob
 
 Serve the repository with a local static HTTP server (rather than `file://`) and verify:
 
-- public catalogue load and preview fallback;
+- public live-catalogue load, safe empty/error states, and no demo-product fallback;
 - account sign-up, confirmation, sign-in/out and password reset;
 - profile/address isolation and customer order history;
 - contact, newsletter and custom-gift submission;

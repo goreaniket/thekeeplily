@@ -570,6 +570,10 @@
               }
               try { sessionStorage.removeItem(idempotencyStorageKey); } catch (error) {}
               cart.clear();
+              if (verifyResult.data.needs_review === true) {
+                document.getElementById('main').innerHTML = '<section class="confirmation"><span class="success-icon">' + icon('check') + '</span><p class="eyebrow">PAYMENT VERIFIED</p><h1>Your payment is received ♡</h1><p>Order <strong>' + escapeHTML(order.order_number) + '</strong> needs a stock review before it can be confirmed. Do not retry payment. Contact support with payment ID <strong>' + escapeHTML(paymentResponse.razorpay_payment_id) + '</strong>.</p><div class="confirmation-card"><span>Order total</span><strong>' + window.formatINR(Number(order.grand_total)) + '</strong><span>Payment status</span><strong>Paid · review required</strong></div><a class="button primary" href="account.html">View your account</a></section>';
+                return;
+              }
               document.getElementById('main').innerHTML = '<section class="confirmation"><span class="success-icon">' + icon('check') + '</span><p class="eyebrow">PAYMENT VERIFIED</p><h1>Your order is confirmed ♡</h1><p>Payment for order <strong>' + escapeHTML(order.order_number) + '</strong> has been verified successfully.</p><div class="confirmation-card"><span>Order total</span><strong>' + window.formatINR(Number(order.grand_total)) + '</strong><span>Payment status</span><strong>Paid</strong></div><a class="button primary" href="account.html">View your account</a></section>';
             } catch (verifyError) {
               console.error('Payment verification failed.', verifyError);
@@ -586,10 +590,34 @@
             }
           }
         });
-        razorpay.on('payment.failed', function (failure) {
+        razorpay.on('payment.failed', async function (failure) {
+          button.disabled = true;
+          button.textContent = 'Checking payment status…';
+          var metadata = failure && failure.error && failure.error.metadata || {};
+          if (metadata.payment_id) {
+            try {
+              var failedResult = await client.functions.invoke('verify-razorpay-payment', {
+                body: {
+                  outcome: 'failed',
+                  order_id: order.id,
+                  razorpay_payment_id: metadata.payment_id,
+                  razorpay_order_id: paymentOrder.razorpay_order_id
+                }
+              });
+              if (!failedResult.error && failedResult.data && failedResult.data.failed === true) {
+                button.disabled = false;
+                button.innerHTML = 'Retry payment ' + icon('arrow');
+                setFormMessage(form, 'Razorpay verified that the payment failed. No stock was deducted. You can retry payment.', true);
+                return;
+              }
+              console.error('Payment failure status could not be verified.', failedResult.error || failedResult.data);
+            } catch (failureError) {
+              console.error('Payment failure status could not be verified.', failureError);
+            }
+          }
           button.disabled = false;
           button.innerHTML = 'Retry payment ' + icon('arrow');
-          setFormMessage(form, (failure.error && failure.error.description) || 'Payment was not completed. Your order remains pending.', true);
+          setFormMessage(form, 'Payment was not confirmed. No stock was deducted; the order remains pending until payment status is verified. You can retry.', true);
         });
         razorpay.open();
       });

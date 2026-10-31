@@ -72,7 +72,7 @@
     body.innerHTML = (result.data||[]).map(function (o) {
       var customer = (o.shipping_address || {}).full_name || o.guest_email || (o.user_id ? 'Customer' : 'Guest');
       var items = (o.order_items || []).map(function (item) { return escapeHTML(item.name_snapshot)+' × '+Number(item.quantity); }).join(', ');
-      return '<tr><td>'+escapeHTML(o.order_number)+'<br><small>'+items+'</small></td><td>'+escapeHTML(customer)+'<br><small>'+escapeHTML(o.guest_email||'')+'</small></td><td>'+money(o.grand_total)+'</td><td>'+escapeHTML(o.payment_status)+'</td><td><select data-order-status="'+escapeHTML(o.id)+'">'+optionList(['pending_payment','confirmed','preparing','ready_to_ship','shipped','delivered','cancelled','refunded'],o.status)+'</select></td></tr>';
+      return '<tr><td>'+escapeHTML(o.order_number)+'<br><small>'+items+'</small></td><td>'+escapeHTML(customer)+'<br><small>'+escapeHTML(o.guest_email||'')+'</small></td><td>'+money(o.grand_total)+'</td><td>'+escapeHTML(o.payment_status)+'</td><td><select data-order-status="'+escapeHTML(o.id)+'">'+optionList(['pending_payment','payment_review','confirmed','preparing','ready_to_ship','shipped','delivered','cancelled','refunded'],o.status)+'</select></td></tr>';
     }).join('') || '<tr><td colspan="5">No orders yet.</td></tr>';
   }
 

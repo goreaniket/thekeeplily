@@ -8,12 +8,13 @@ const allowedOrigins = new Set([
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("Origin");
-  return {
-    "Access-Control-Allow-Origin": origin && allowedOrigins.has(origin) ? origin : defaultOrigin,
+  const headers: Record<string, string> = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
   };
+  if (origin && allowedOrigins.has(origin)) headers["Access-Control-Allow-Origin"] = origin;
+  return headers;
 }
 
 function response(req: Request, body: unknown, status = 200) {
@@ -21,7 +22,9 @@ function response(req: Request, body: unknown, status = 200) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(req) });
+  const origin = req.headers.get("Origin");
+  if (origin && !allowedOrigins.has(origin)) return response(req, { error: "Origin not allowed" }, 403);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(req) });
   if (req.method !== "POST") return response(req, { error: "Method not allowed" }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -42,6 +45,13 @@ Deno.serve(async (req) => {
   if (!body.order_id || !/^[0-9a-f-]{36}$/i.test(body.order_id)) return response(req, { error: "A valid order ID is required" }, 400);
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+  const { data: pricingSetting, error: pricingError } = await admin.from("store_settings")
+    .select("value").eq("key", "checkout_pricing_approved").maybeSingle();
+  if (pricingError) return response(req, { error: "Checkout pricing configuration is unavailable" }, 503);
+  if (!pricingSetting || pricingSetting.value !== true) {
+    return response(req, { error: "Checkout is paused until delivery charges and tax treatment are approved" }, 403);
+  }
+
   const { data: order, error: orderError } = await admin.from("orders")
     .select("id, order_number, user_id, status, payment_status, grand_total, currency")
     .eq("id", body.order_id).eq("user_id", user.id).maybeSingle();

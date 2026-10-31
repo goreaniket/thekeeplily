@@ -144,7 +144,9 @@
       var heading = document.createElement('strong');
       heading.textContent = order.order_number;
       var status = document.createElement('p');
-      status.textContent = 'Order: ' + order.status.replace(/_/g, ' ') +
+      status.textContent = (order.status === 'payment_review'
+        ? 'Payment received; order confirmation needs stock review'
+        : 'Order: ' + order.status.replace(/_/g, ' ')) +
         ' · Payment: ' + order.payment_status.replace(/_/g, ' ') +
         ' · ' + new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(order.grand_total));
       var items = document.createElement('p');
