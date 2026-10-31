@@ -28,8 +28,11 @@ In Supabase Dashboard → Project → Edge Functions → Secrets, set:
 - `RAZORPAY_KEY_ID` = the newly generated **Test Mode** Key ID
 - `RAZORPAY_KEY_SECRET` = the newly generated **Test Mode** Secret
 - `SITE_ORIGIN` = `https://thekeeplilyco.vercel.app`
+- `SITE_ORIGINS` = optional comma-separated exact origins for local testing, for example `http://127.0.0.1:8768,http://localhost:8768`
 
 Supabase provides `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions. Never put the Razorpay Secret or service-role key in browser code, GitHub, Vercel frontend variables, screenshots or chat. The previously exposed Secret must remain revoked and must not be reused.
+
+Keep `SITE_ORIGIN` set to the production site. Add only the exact local origins needed to `SITE_ORIGINS`; do not use `*`. The local origins must also be allowed in Supabase Auth URL Configuration.
 
 ## Deploy Edge Functions
 
