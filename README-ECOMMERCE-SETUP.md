@@ -13,6 +13,8 @@ The publishable key is intentionally public; Row Level Security and narrowly gra
 
 ## Database setup and migration order
 
+For the blank, schema-matched product import templates and verified category lookup, see [`README-CATALOGUE-IMPORT.md`](./README-CATALOGUE-IMPORT.md). The templates intentionally contain no product data.
+
 For a **new Supabase project**, run these files in the SQL Editor in order:
 
 1. `supabase/schema.sql` — baseline schema and initial RLS/storage policies. This is a one-time bootstrap file, not a repeatable migration; do not rerun it on a populated project.
