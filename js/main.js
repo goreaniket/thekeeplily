@@ -311,21 +311,21 @@
         if (!window.supabase || !window.Razorpay) throw new Error('Payment service did not load. Refresh and try again.');
         var db=window.supabase.createClient('https://ucdnomryfppbpztdifwc.supabase.co','sb_publishable_vpppYo0jhiZceNamsEUaiQ_3AFlQJ7z');
         var sr=await db.auth.getSession(); if(sr.error) throw sr.error;
-        if(!sr.data.session){location.href='auth.html?next='+encodeURIComponent('checkout.html');return;}
         var d=new FormData(form);
         var customer={name:d.get('name').trim(),email:d.get('email').trim(),phone:d.get('phone').trim()};
         var address={house:d.get('house').trim(),address:d.get('address').trim(),city:d.get('city').trim(),state:d.get('state').trim(),pin:d.get('pin').trim(),country:'India'};
         var items=lines.map(function(line){var p=cart.productById(line.productId);if(!p)throw new Error('A cart item is unavailable. Refresh your bag.');return {sku:p.sku,variant:line.variant,quantity:line.quantity,customisation:!!line.customisation,personalisation:line.personalisation||'',gift_message:line.giftMessage||''};});
         var pending=await db.rpc('create_pending_keeplily_order',{p_customer_name:customer.name,p_email:customer.email,p_phone:customer.phone,p_shipping_address:address,p_items:items,p_customer_note:(d.get('notes')||'').trim()||null});
         if(pending.error)throw pending.error;
-        var created=await db.functions.invoke('create-razorpay-order',{body:{order_id:pending.data.order_id}});
+        var guestToken=pending.data.guest_checkout_token||null;
+        var created=await db.functions.invoke('create-razorpay-order',{body:{order_id:pending.data.order_id,guest_checkout_token:guestToken}});
         if(created.error)throw created.error;
         var po=created.data; err.textContent='';
         var rz=new window.Razorpay({key:po.key_id,amount:po.amount,currency:po.currency,name:'TheKeeplily Co.',description:'Order '+po.order_number,order_id:po.razorpay_order_id,prefill:{name:customer.name,email:customer.email,contact:customer.phone},notes:{store_order_id:pending.data.order_id},theme:{color:'#b97883'},modal:{ondismiss:function(){button.disabled=false;err.textContent='Payment window closed. Order remains pending; you can retry.';}},handler:async function(resp){
           button.disabled=true;err.textContent='Verifying payment…';
-          try{var v=await db.functions.invoke('verify-razorpay-payment',{body:{order_id:pending.data.order_id,razorpay_payment_id:resp.razorpay_payment_id,razorpay_order_id:resp.razorpay_order_id,razorpay_signature:resp.razorpay_signature}});
+          try{var v=await db.functions.invoke('verify-razorpay-payment',{body:{order_id:pending.data.order_id,guest_checkout_token:guestToken,razorpay_payment_id:resp.razorpay_payment_id,razorpay_order_id:resp.razorpay_order_id,razorpay_signature:resp.razorpay_signature}});
             if(v.error||!v.data||v.data.verified!==true)throw(v.error||new Error((v.data&&v.data.error)||'Payment verification is pending.'));
-            cart.clear();document.getElementById('main').innerHTML='<section class="confirmation"><span class="success-icon">'+icon('check')+'</span><p class="eyebrow">PAYMENT CONFIRMED</p><h1>Your order is confirmed ♡</h1><p>Razorpay verified your payment.</p><div class="confirmation-card"><span>Order number</span><strong>'+escapeHTML(po.order_number)+'</strong><span>Payment ID</span><strong>'+escapeHTML(resp.razorpay_payment_id)+'</strong></div><a class="button primary" href="account.html">View my account</a></section>';
+            cart.clear();document.getElementById('main').innerHTML='<section class="confirmation"><span class="success-icon">'+icon('check')+'</span><p class="eyebrow">PAYMENT CONFIRMED</p><h1>Your order is confirmed ♡</h1><p>Razorpay verified your payment.</p><div class="confirmation-card"><span>Order number</span><strong>'+escapeHTML(po.order_number)+'</strong><span>Payment ID</span><strong>'+escapeHTML(resp.razorpay_payment_id)+'</strong></div><a class="button primary" href="shop.html">Continue shopping</a></section>';
           }catch(e){err.textContent=(e.message||'Verification pending')+' Payment ID: '+resp.razorpay_payment_id;button.disabled=false;}
         }});
         rz.on('payment.failed',function(e){err.textContent=(e.error&&e.error.description)||'Payment failed. Order is not confirmed.';button.disabled=false;});
