@@ -104,9 +104,31 @@
     renderProductGrid(document.getElementById('home-favourites'), products.filter(function (product) { return product.visible && product.bestseller; }).slice(0, 4));
     renderProductGrid(document.getElementById('home-featured'), products.filter(function (product) { return product.visible && product.featured; }).slice(0, 4));
     var newsletter = document.getElementById('newsletter-form');
-    newsletter.addEventListener('submit', function (event) {
+    newsletter.addEventListener('submit', async function (event) {
       event.preventDefault();
-      newsletter.outerHTML = '<p class="newsletter-done">' + icon('check') + ' You’re on the little preview list. ♡</p>';
+      var email = (document.getElementById('newsletter-email').value || '').trim().toLowerCase();
+      var button = newsletter.querySelector('button');
+      var feedback = document.getElementById('newsletter-feedback');
+      if (!feedback) {
+        newsletter.insertAdjacentHTML('afterend', '<p id="newsletter-feedback" role="status"></p>');
+        feedback = document.getElementById('newsletter-feedback');
+      }
+      button.disabled = true;
+      feedback.textContent = 'Adding your email…';
+      try {
+        if (!window.supabase) throw new Error('The subscription service is unavailable. Please try again later.');
+        var db = window.supabase.createClient('https://ucdnomryfppbpztdifwc.supabase.co', 'sb_publishable_vpppYo0jhiZceNamsEUaiQ_3AFlQJ7z');
+        var result = await db.from('newsletter_subscribers').insert({ email: email, is_active: true });
+        if (result.error) {
+          if (result.error.code === '23505') throw new Error('This email is already on the list.');
+          throw result.error;
+        }
+        newsletter.outerHTML = '<p class="newsletter-done">' + icon('check') + ' You’re on the Keeplily update list. ♡</p>';
+        if (feedback) feedback.remove();
+      } catch (error) {
+        feedback.textContent = error.message || 'Could not subscribe. Please try again.';
+        button.disabled = false;
+      }
     });
   }
 
@@ -232,7 +254,48 @@
 
   function renderCustomGifts() {
     document.getElementById('main').innerHTML = '<section class="page-hero custom-page-hero"><p class="eyebrow">FROM YOUR HEART, MADE BY OUR HANDS</p><h1>Made Especially for You ♡</h1><p>Have something special in mind? Tell us your idea and let’s turn it into a little keepsake.</p></section><section class="custom-form-layout"><div class="process-card"><p class="eyebrow">HOW IT WORKS</p><h2>From idea to keepsake</h2><ol><li><span>1</span><div><strong>Share your idea</strong><p>Tell us the moment, mood and details.</p></div></li><li><span>2</span><div><strong>Review together</strong><p>At launch, we’ll confirm feasibility, timeline and quote.</p></div></li><li><span>3</span><div><strong>Approve the plan</strong><p>Nothing is charged automatically.</p></div></li></ol><p class="soft-note">Preview only: this form does not send a live request.</p></div><form class="custom-form" id="custom-form"><div class="form-grid"><label>Name<input name="name" required autocomplete="name"></label><label>Email<input name="email" required type="email" autocomplete="email"></label><label>Phone<input name="phone" required inputmode="tel" autocomplete="tel"></label><label>Occasion<select name="occasion" required><option value="">Choose an occasion</option><option>Birthday</option><option>Friendship</option><option>Anniversary</option><option>Festive</option><option>Just because</option></select></label><label>Product type<select name="productType" required><option value="">What would you like?</option>' + categories.concat(['Gift Set','Something else']).map(function (name) { return '<option>' + escapeHTML(name) + '</option>'; }).join('') + '</select></label><label>Budget<input name="budget" required inputmode="numeric" placeholder="₹"></label><label>Required date<input name="requiredDate" type="date"></label><label>Quantity<input name="quantity" type="number" min="1" value="1"></label></div><label>Colours / theme<input name="theme" placeholder="Blush pink, daisies, warm neutrals…"></label><label>Customisation details<textarea name="details" required placeholder="Tell us the idea, names, initials and the feeling behind the gift…"></textarea></label><label>Gift message<textarea name="giftMessage" placeholder="Optional message for the recipient"></textarea></label><label>Notes<textarea name="notes"></textarea></label><button class="button primary full" type="submit">Preview my custom request ' + icon('arrow') + '</button></form></section>';
-    document.getElementById('custom-form').addEventListener('submit', function (event) { event.preventDefault(); document.getElementById('main').innerHTML = '<section class="confirmation"><span class="success-icon">' + icon('check') + '</span><p class="eyebrow">PREVIEW READY</p><h1>Your custom gift request looks ready ♡</h1><p>Live submissions will be enabled at launch.</p><a class="button primary" href="shop.html">Browse the collection</a></section>'; });
+    document.getElementById('custom-form').addEventListener('submit', async function (event) {
+      event.preventDefault();
+      var form = event.currentTarget;
+      var button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      button.textContent = 'Sending request…';
+      try {
+        if (!window.supabase) throw new Error('The request service is unavailable. Please try again later.');
+        var data = Object.fromEntries(new FormData(form).entries());
+        var budget = Number(String(data.budget || '').replace(/[^0-9.]/g, ''));
+        var quantity = Math.max(1, Number(data.quantity || 1));
+        if (!Number.isFinite(budget) || budget <= 0) throw new Error('Enter a valid budget in rupees.');
+        var db = window.supabase.createClient('https://ucdnomryfppbpztdifwc.supabase.co', 'sb_publishable_vpppYo0jhiZceNamsEUaiQ_3AFlQJ7z');
+        var result = await db.from('custom_gift_requests').insert({
+          user_id: null,
+          name: String(data.name || '').trim(),
+          email: String(data.email || '').trim().toLowerCase(),
+          phone: String(data.phone || '').trim() || null,
+          occasion: data.occasion,
+          gift_type: data.productType,
+          budget_min: budget,
+          budget_max: budget,
+          required_by: data.requiredDate || null,
+          quantity: quantity,
+          preferred_colours: String(data.theme || '').trim() || null,
+          description: String(data.details || '').trim() + (data.notes ? '\\n\\nAdditional notes: ' + String(data.notes).trim() : ''),
+          gift_message: String(data.giftMessage || '').trim() || null,
+          status: 'new'
+        }).select('id').single();
+        if (result.error) throw result.error;
+        document.getElementById('main').innerHTML = '<section class="confirmation"><span class="success-icon">' + icon('check') + '</span><p class="eyebrow">REQUEST RECEIVED</p><h1>Your idea is with us ♡</h1><p>Request reference: ' + escapeHTML(result.data.id.slice(0, 8).toUpperCase()) + '</p><p>We’ll review the details and contact you to confirm the quote and timeline. No payment has been taken.</p><a class="button primary" href="shop.html">Browse the collection</a></section>';
+      } catch (error) {
+        var message = document.getElementById('custom-request-error');
+        if (!message) {
+          form.insertAdjacentHTML('afterbegin', '<p id="custom-request-error" role="alert"></p>');
+          message = document.getElementById('custom-request-error');
+        }
+        message.textContent = error.message || 'Your request could not be sent. Please try again.';
+        button.disabled = false;
+        button.textContent = 'Try again';
+      }
+    });
   }
 
   function renderCheckout() {
@@ -387,7 +450,7 @@
           materials:row.materials || base.materials || '', dimensions:row.dimensions || base.dimensions || '',
           variants:variants.map(function(v){return v.name || v.label || 'Standard';}),
           variantPricing:variantPricing, customisable:!!row.is_customisable, customisationCharge:Number(row.customisation_charge || 0), stock:row.track_inventory?Number(row.stock_quantity||0):null, availability:row.track_inventory&&Number(row.stock_quantity||0)<=0&&!row.allow_backorder?'sold-out':'available',
-          customisationNotes:base.customisationNotes || '', stock:null, availability:'available', madeToOrder:true,
+          customisationNotes:base.customisationNotes || '', madeToOrder:true,
           preparationTime:base.preparationTime || 'Preparation time will be confirmed before dispatch.',
           careInstructions:row.care_instructions || base.careInstructions || '',
           badges:base.badges || [], tags:row.tags || base.tags || [], visible:true,
