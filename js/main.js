@@ -365,7 +365,7 @@
         variants.forEach(function(v){ variantPricing[v.name || v.label || 'Standard'] = Number(v.price_adjustment || v.price || 0); });
         var primary = (row.product_images || []).find(function(i){return i.is_primary && i.storage_path;}) || (row.product_images || []).find(function(i){return i.storage_path;});
         var image = base.image || 'assets/keeplily-collection.png';
-        if (primary && primary.storage_path) image = client.storage.from('product-images').getPublicUrl(primary.storage_path).data.publicUrl;
+        if (primary && primary.storage_path) image = /^https?:\/\//i.test(primary.storage_path) ? primary.storage_path : client.storage.from('product-images').getPublicUrl(primary.storage_path).data.publicUrl;
         return Object.assign({}, base, {
           id:row.id, sku:row.sku, slug:row.slug, name:row.name, category:categoryResult.data.find(function(c){return c.id===row.category_id;})?.name || base.category || 'Gifts',
           price:Number(row.price), salePrice:row.sale_price===null?null:Number(row.sale_price),
