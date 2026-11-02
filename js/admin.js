@@ -14,7 +14,7 @@ const [p,c,o,cu,pa,en,sh,cr,st]=await Promise.all([
 db.from('products').select('id,category_id,sku,slug,name,short_description,description,price,sale_price,status,is_featured,is_customisable,customisation_charge,stock_quantity,track_inventory,allow_backorder,variants,created_at').order('created_at',{ascending:false}),
 db.from('categories').select('id,name,slug,description,sort_order,is_active').order('sort_order'),
 db.from('orders').select('id,order_number,user_id,guest_email,guest_phone,status,payment_status,grand_total,created_at,invoice_number').order('created_at',{ascending:false}).limit(100),
-db.from('profiles').select('id,full_name,phone,created_at').eq('role','customer').order('created_at',{ascending:false}).limit(200),
+db.from('profiles').select('id,full_name,email,phone,created_at').eq('role','customer').order('created_at',{ascending:false}).limit(200),
 db.from('payments').select('id,order_id,amount,status,provider_payment_id,provider,created_at').order('created_at',{ascending:false}).limit(100),
 db.from('contact_messages').select('id,name,email,phone,subject,message,status,created_at').order('created_at',{ascending:false}).limit(100),
 db.from('shipments').select('id,order_id,provider,awb_number,status,tracking_url').order('created_at',{ascending:false}).limit(100),
