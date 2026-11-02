@@ -3,7 +3,15 @@
 
   var products = window.KEEPLILY_PRODUCTS || [];
   var categories = window.KEEPLILY_CATEGORIES || [];
+  var settings = window.KEEPLILY_SETTINGS || {};
   var cart = window.KeeplilyCart;
+
+  function settingText(key, fallback) {
+    var value = settings[key];
+    if (typeof value === 'string') return value;
+    if (value && typeof value.text === 'string') return value.text;
+    return fallback;
+  }
 
   function escapeHTML(value) {
     return String(value === null || value === undefined ? '' : value)
@@ -44,7 +52,7 @@
     var footer = document.getElementById('site-footer');
     if (header) header.innerHTML =
       '<a class="skip-link" href="#main">Skip to content</a>' +
-      '<p class="announcement">Little gifts, big feelings. ♡</p>' +
+      '<p class="announcement">' + escapeHTML(settingText('announcement_text', 'Little gifts, big feelings.')) + ' ♡</p>' +
       '<header class="site-header">' +
         '<button class="mobile-menu-button" type="button" data-menu-open aria-label="Open menu">' + icon('menu') + '</button>' +
         '<a class="wordmark" href="index.html" aria-label="TheKeeplily Co. home"><span class="wordmark-flower">✿</span><span>TheKeeplily Co.</span></a>' +
@@ -55,7 +63,7 @@
       '<footer><div class="footer-brand"><a class="wordmark" href="index.html"><span class="wordmark-flower">✿</span>TheKeeplily Co.</a><p>Little gifts, big feelings. ♡</p><p>Handmade in Vapi, Gujarat, India.</p></div>' +
       '<div><h3>Explore</h3><a href="shop.html">Shop</a><a href="custom-gifts.html">Custom Gifts</a><a href="about.html">About</a><a href="owner.html">Owner</a><a href="contact.html">Contact</a></div>' +
       '<div><h3>Helpful</h3><a href="shipping.html">Shipping</a><a href="returns.html">Returns</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="copyright.html">Copyright</a></div>' +
-      '<div><h3>Keep in touch</h3><a href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">@the_keeplily.co</a><a href="mailto:luniyasejal50@gmail.com">luniyasejal50@gmail.com</a></div>' +
+      '<div><h3>Keep in touch</h3><a href="' + escapeHTML(settingText('instagram_url', 'https://instagram.com/the_keeplily.co')) + '" target="_blank" rel="noreferrer">@the_keeplily.co</a><a href="mailto:' + escapeHTML(settingText('contact_email', 'thekeeplilyco26@gmail.com')) + '">' + escapeHTML(settingText('contact_email', 'thekeeplilyco26@gmail.com')) + '</a></div>' +
       '<p class="copyright">© 2026 TheKeeplily Co. · Made with a little love ♡</p></footer>';
 
     document.body.insertAdjacentHTML('beforeend',
@@ -83,7 +91,7 @@
 
   function renderHome() {
     document.getElementById('main').innerHTML =
-      '<section class="hero"><div class="hero-copy"><p class="eyebrow">HANDMADE IN VAPI, WITH LOVE</p><h1>Little keepsakes for <em>big feelings.</em></h1><p class="hero-lead">Handmade little things for your favourite people—thoughtfully created to celebrate tiny joys and everything worth keeping.</p><div class="hero-buttons"><a class="button primary" href="shop.html">Shop now ' + icon('arrow') + '</a><a class="button secondary" href="custom-gifts.html">Custom gifts</a></div><div class="hero-notes"><span>♡ Handmade with care</span><span>✦ Personalised for you</span></div></div><div class="hero-art"><div class="hero-image-shell"><img class="hero-image" src="assets/keeplily-collection.png" alt="A candle, clay heart charm, beaded phone charm, handmade card and floral wax sachet arranged on a warm cream surface"><span class="floating-note">made to be kept ♡</span></div><span class="sparkle sparkle-one">✦</span><span class="sparkle sparkle-two">✧</span></div></section>' +
+      '<section class="hero"><div class="hero-copy"><p class="eyebrow">HANDMADE IN VAPI, WITH LOVE</p><h1>' + escapeHTML(settingText('homepage_hero_title', 'Little keepsakes for big feelings.')) + '</h1><p class="hero-lead">' + escapeHTML(settingText('homepage_hero_description', 'Handmade little things for your favourite people—thoughtfully created to celebrate tiny joys and everything worth keeping.')) + '</p><div class="hero-buttons"><a class="button primary" href="shop.html">Shop now ' + icon('arrow') + '</a><a class="button secondary" href="custom-gifts.html">Custom gifts</a></div><div class="hero-notes"><span>♡ Handmade with care</span><span>✦ Personalised for you</span></div></div><div class="hero-art"><div class="hero-image-shell"><img class="hero-image" src="assets/keeplily-collection.png" alt="A candle, clay heart charm, beaded phone charm, handmade card and floral wax sachet arranged on a warm cream surface"><span class="floating-note">made to be kept ♡</span></div><span class="sparkle sparkle-one">✦</span><span class="sparkle sparkle-two">✧</span></div></section>' +
       '<section class="section categories-section">' + sectionHeading('A LITTLE SOMETHING FOR EVERY FEELING', 'Find Your Little Favourite ♡') + '<div class="category-grid">' + categories.map(function (name, index) { return '<a class="category-card category-' + index + '" href="shop.html?category=' + encodeURIComponent(name) + '"><img src="assets/keeplily-collection.png" alt="" loading="lazy"><div><span>0' + (index + 1) + '</span><h3>' + escapeHTML(name) + '</h3>' + icon('arrow') + '</div></a>'; }).join('') + '</div></section>' +
       '<section class="section products-section">' + sectionHeading('CHOSEN WITH LOVE', 'Our Little Favourites ♡', 'Shop all', 'shop.html') + '<div class="product-grid" id="home-favourites"></div></section>' +
       '<section class="custom-banner"><div class="custom-copy"><span class="mini-script">your idea, made little</span><h2>Have something special in mind?<br><em>Let’s create it together. ♡</em></h2><p>Tell us the person, the moment and your favourite colours. We’ll help turn the feeling into a keepsake.</p><a class="button primary" href="custom-gifts.html">Customise your gift ' + icon('arrow') + '</a></div><div class="custom-gift-card"><span class="gift-symbol">♡</span><strong>Made especially for you</strong><span>One thoughtful detail at a time</span></div></section>' +
@@ -351,10 +359,15 @@
     if (!window.supabase || !['home','shop','product','checkout'].includes(document.body.dataset.page || 'home')) return;
     try {
       var client = window.supabase.createClient('https://ucdnomryfppbpztdifwc.supabase.co','sb_publishable_vpppYo0jhiZceNamsEUaiQ_3AFlQJ7z');
-      var result = await client.from('products').select('id,category_id,sku,slug,name,short_description,description,price,sale_price,status,is_featured,is_bestseller,is_new_arrival,is_customisable,customisation_charge,variants,tags,materials,dimensions,care_instructions,product_images(storage_path,is_primary)').eq('status','active').order('created_at',{ascending:false});
+      var result = await client.from('products').select('id,category_id,sku,slug,name,short_description,description,price,sale_price,status,is_featured,is_bestseller,is_new_arrival,is_customisable,customisation_charge,stock_quantity,track_inventory,allow_backorder,variants,tags,materials,dimensions,care_instructions,product_images(storage_path,is_primary)').eq('status','active').order('created_at',{ascending:false});
       if (result.error) throw result.error;
       var categoryResult = await client.from('categories').select('id,name,slug,sort_order,is_active').eq('is_active',true).order('sort_order');
       if (categoryResult.error) throw categoryResult.error;
+      var settingsResult = await client.from('store_settings').select('key,value');
+      if (settingsResult.error) throw settingsResult.error;
+      settings = {};
+      (settingsResult.data || []).forEach(function(item){ settings[item.key] = item.value; });
+      window.KEEPLILY_SETTINGS = settings;
       var staticProducts = window.KEEPLILY_PRODUCTS || [];
       var bySku = {};
       staticProducts.forEach(function(p){ if(p.sku) bySku[p.sku]=p; });
@@ -373,7 +386,7 @@
           image:image, imagePosition:base.imagePosition || 'center', additionalImages:[],
           materials:row.materials || base.materials || '', dimensions:row.dimensions || base.dimensions || '',
           variants:variants.map(function(v){return v.name || v.label || 'Standard';}),
-          variantPricing:variantPricing, customisable:!!row.is_customisable, customisationCharge:Number(row.customisation_charge || 0),
+          variantPricing:variantPricing, customisable:!!row.is_customisable, customisationCharge:Number(row.customisation_charge || 0), stock:row.track_inventory?Number(row.stock_quantity||0):null, availability:row.track_inventory&&Number(row.stock_quantity||0)<=0&&!row.allow_backorder?'sold-out':'available',
           customisationNotes:base.customisationNotes || '', stock:null, availability:'available', madeToOrder:true,
           preparationTime:base.preparationTime || 'Preparation time will be confirmed before dispatch.',
           careInstructions:row.care_instructions || base.careInstructions || '',
