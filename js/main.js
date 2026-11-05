@@ -220,7 +220,7 @@
 
 
   function renderOwner() {
-    document.getElementById('main').innerHTML = '<section class="page-hero"><p class="eyebrow">THE PERSON BEHIND THE KEEPLILY CO.</p><h1>Meet the Founder</h1><p>A teenager trying to be an entrepreneur.</p></section><section class="editorial-about"><div><img src="assets/keeplily-collection.png" alt="TheKeeplily Co. handmade creations"></div><article><span class="mini-script">founder & owner</span><h2>Sejal Luniya</h2><p>Teenager trying to be entrepreneur.</p><p>TheKeeplily is a little world of handmade creations, where every piece carries its own meaning and every gift feels personal.</p><p>Based in Vapi, Gujarat, TheKeeplily Co. is built around handmade creations and thoughtful gifting.</p><p><a class="text-link" href="contact.html">Contact TheKeeplily Co. ' + icon('arrow') + '</a></p></article></section>';
+    document.getElementById('main').innerHTML = '<section class="page-hero"><p class="eyebrow">THE PERSON BEHIND THE KEEPLILY CO.</p><h1>Meet the Founder</h1><p>A teenager trying to be an entrepreneur.</p></section><section class="editorial-about"><div><img src="assets/WhatsApp%20Image%202026-11-04%20at%2010.05.59%20PM.jpeg" alt="Sejal Luniya, founder of TheKeeplily Co."></div><article><span class="mini-script">founder & owner</span><h2>Sejal Luniya</h2><p>Teenager trying to be entrepreneur.</p><p>TheKeeplily is a little world of handmade creations, where every piece carries its own meaning and every gift feels personal.</p><p>Based in Vapi, Gujarat, TheKeeplily Co. is built around handmade creations and thoughtful gifting.</p><p><a class="text-link" href="contact.html">Contact TheKeeplily Co. ' + icon('arrow') + '</a></p></article></section>';
   }
 
   function renderContact() {
