@@ -56,7 +56,7 @@
       '<header class="site-header">' +
         '<button class="mobile-menu-button" type="button" data-menu-open aria-label="Open menu">' + icon('menu') + '</button>' +
         '<a class="wordmark" href="index.html" aria-label="TheKeeplily Co. home"><span class="wordmark-flower">✿</span><span>TheKeeplily Co.</span></a>' +
-        '<nav class="desktop-nav" aria-label="Primary navigation"><a href="index.html">Home</a><a href="copyright.html">Copyright</a><a href="shop.html">Shop</a><a href="shop.html#filters">Categories</a><a href="custom-gifts.html">Custom Gifts</a><a href="about.html">About</a><a href="owner.html">Owner</a><a href="contact.html">Contact</a><a href="auth.html">My Account</a></nav>' +
+        '<nav class="desktop-nav" aria-label="Primary navigation"><a href="index.html">Home</a><a href="copyright.html">Copyright</a><a href="shop.html">Shop</a><a href="shop.html#filters">Categories</a><a href="custom-gifts.html">Custom Gifts</a><a href="about.html">About</a><a href="owner.html">Owner</a><a href="contact.html">Contact</a><a class="account-nav-link" href="auth.html" data-account-link>Sign in</a></nav>' +
         '<div class="header-actions"><form class="header-search" id="header-search"><label class="sr-only" for="header-search-input">Search products</label>' + icon('search') + '<input id="header-search-input" name="q" placeholder="Search" autocomplete="off"></form><a class="icon-button heart-link" href="shop.html?wishlist=1" aria-label="View wishlist">♡</a><button class="icon-button bag-button" type="button" data-cart-open aria-label="Open shopping bag">' + icon('bag') + '<span data-cart-count>0</span></button></div>' +
       '</header>';
     if (footer) footer.innerHTML =
@@ -67,16 +67,25 @@
       '<p class="copyright">© 2026 TheKeeplily Co. · Made with a little love ♡</p></footer>';
 
     document.body.insertAdjacentHTML('beforeend',
-      '<div class="drawer-layer" id="menu-drawer" hidden><button class="drawer-backdrop" type="button" data-drawer-close aria-label="Close menu"></button><aside class="drawer-panel menu-sheet" role="dialog" aria-modal="true" aria-label="Navigation menu"><button class="drawer-close" type="button" data-drawer-close aria-label="Close menu">' + icon('close') + '</button><div class="drawer-heading"><strong>TheKeeplily Co.</strong><span>Little gifts, big feelings. ♡</span></div><nav class="mobile-nav"><a href="index.html">Home</a><a href="copyright.html">Copyright</a><a href="shop.html">Shop all</a>' + categories.map(function (category) { return '<a href="shop.html?category=' + encodeURIComponent(category) + '">' + escapeHTML(category) + '</a>'; }).join('') + '<a href="custom-gifts.html">Custom gifts</a><a href="about.html">About</a><a href="owner.html">Owner</a><a href="contact.html">Contact</a><a href="auth.html" data-account-link>Sign in</a></nav></aside></div>' +
+      '<div class="drawer-layer" id="menu-drawer" hidden><button class="drawer-backdrop" type="button" data-drawer-close aria-label="Close menu"></button><aside class="drawer-panel menu-sheet" role="dialog" aria-modal="true" aria-label="Navigation menu"><button class="drawer-close" type="button" data-drawer-close aria-label="Close menu">' + icon('close') + '</button><div class="drawer-heading"><strong>TheKeeplily Co.</strong><span>Little gifts, big feelings. ♡</span></div><nav class="mobile-nav"><a href="index.html">Home</a><a href="copyright.html">Copyright</a><a href="shop.html">Shop all</a>' + categories.map(function (category) { return '<a href="shop.html?category=' + encodeURIComponent(category) + '">' + escapeHTML(category) + '</a>'; }).join('') + '<a href="custom-gifts.html">Custom gifts</a><a href="about.html">About</a><a href="owner.html">Owner</a><a href="contact.html">Contact</a><a class="account-nav-link" href="auth.html" data-account-link>Sign in</a></nav></aside></div>' +
       '<div class="drawer-layer" id="cart-drawer" hidden><button class="drawer-backdrop" type="button" data-drawer-close aria-label="Close cart"></button><aside class="drawer-panel cart-sheet" role="dialog" aria-modal="true" aria-label="Shopping cart"><button class="drawer-close" type="button" data-drawer-close aria-label="Close cart">' + icon('close') + '</button><div class="drawer-heading"><strong>Your little bag ♡</strong><span data-cart-caption></span></div><div id="cart-drawer-content" class="cart-drawer-content"></div></aside></div>' +
       '<div class="toast" id="site-toast" role="status" aria-live="polite" hidden></div>');
     updateCartCount();
   }
 
   async function updateAccountNavigation() {
-    var links = document.querySelectorAll('[data-account-link], .desktop-nav a[href="auth.html"]');
-    if (!links.length || !window.supabase) return;
+    var links = document.querySelectorAll('[data-account-link]');
+    if (!links.length) return;
     try {
+      if (!window.supabase) {
+        await new Promise(function(resolve, reject) {
+          var script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
       var db = window.supabase.createClient('https://ucdnomryfppbpztdifwc.supabase.co', 'sb_publishable_vpppYo0jhiZceNamsEUaiQ_3AFlQJ7z');
       var result = await db.auth.getSession();
       var session = result.data && result.data.session;
