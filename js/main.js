@@ -464,7 +464,7 @@
           preparationTime:base.preparationTime || 'Preparation time will be confirmed before dispatch.',
           careInstructions:row.care_instructions || base.careInstructions || '',
           badges:base.badges || [], tags:row.tags || base.tags || [], visible:true,
-          featured:!!row.is_featured, bestseller:!!row.is_bestseller, newArrival:!!row.is_new_arrival, visible:row.sku !== 'KL-LIVE-TEST-001', createdAt:row.created_at
+          featured:!!row.is_featured, bestseller:!!row.is_bestseller, newArrival:!!row.is_new_arrival, visible:true, createdAt:row.created_at
         });
       });
       categories = categoryResult.data.map(function(c){return c.name;});
