@@ -7,3 +7,5 @@
 .customers-view{padding-top:18px}.customers-view .section-toolbar{margin-bottom:12px}.customers-view .section-toolbar h2{font-size:22px}.customers-view .section-toolbar p{font-size:11px}.customers-view .panel{padding:12px}.customers-view table{font-size:10px;min-width:720px}.customers-view th{padding:9px 10px;font-size:8px}.customers-view td{padding:8px 10px}.customers-view .inline-select{padding:5px 6px;font-size:9px}.customers-view .table-action{padding:5px 7px;font-size:9px}
 
 @media(max-width:420px){.owner-guide-grid{grid-template-columns:1fr}}
+
+.product-image-preview{display:flex;align-items:center;gap:12px;min-height:76px;padding:10px;border:1px dashed var(--admin-line);border-radius:9px;background:#fffdfa;color:var(--admin-muted);font-size:11px}.product-image-preview img{width:76px;height:76px;object-fit:cover;border-radius:7px;background:#f7eeee}.product-image-preview span{line-height:1.5}.image-preview-empty{padding:12px 4px}
