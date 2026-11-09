@@ -67,10 +67,28 @@
       '<p class="copyright">© 2026 TheKeeplily Co. · Made with a little love ♡</p></footer>';
 
     document.body.insertAdjacentHTML('beforeend',
-      '<div class="drawer-layer" id="menu-drawer" hidden><button class="drawer-backdrop" type="button" data-drawer-close aria-label="Close menu"></button><aside class="drawer-panel menu-sheet" role="dialog" aria-modal="true" aria-label="Navigation menu"><button class="drawer-close" type="button" data-drawer-close aria-label="Close menu">' + icon('close') + '</button><div class="drawer-heading"><strong>TheKeeplily Co.</strong><span>Little gifts, big feelings. ♡</span></div><nav class="mobile-nav"><a href="index.html">Home</a><a href="copyright.html">Copyright</a><a href="shop.html">Shop all</a>' + categories.map(function (category) { return '<a href="shop.html?category=' + encodeURIComponent(category) + '">' + escapeHTML(category) + '</a>'; }).join('') + '<a href="custom-gifts.html">Custom gifts</a><a href="about.html">About</a><a href="owner.html">Owner</a><a href="contact.html">Contact</a><a href="auth.html">My Account / Sign in</a></nav></aside></div>' +
+      '<div class="drawer-layer" id="menu-drawer" hidden><button class="drawer-backdrop" type="button" data-drawer-close aria-label="Close menu"></button><aside class="drawer-panel menu-sheet" role="dialog" aria-modal="true" aria-label="Navigation menu"><button class="drawer-close" type="button" data-drawer-close aria-label="Close menu">' + icon('close') + '</button><div class="drawer-heading"><strong>TheKeeplily Co.</strong><span>Little gifts, big feelings. ♡</span></div><nav class="mobile-nav"><a href="index.html">Home</a><a href="copyright.html">Copyright</a><a href="shop.html">Shop all</a>' + categories.map(function (category) { return '<a href="shop.html?category=' + encodeURIComponent(category) + '">' + escapeHTML(category) + '</a>'; }).join('') + '<a href="custom-gifts.html">Custom gifts</a><a href="about.html">About</a><a href="owner.html">Owner</a><a href="contact.html">Contact</a><a href="auth.html" data-account-link>Sign in</a></nav></aside></div>' +
       '<div class="drawer-layer" id="cart-drawer" hidden><button class="drawer-backdrop" type="button" data-drawer-close aria-label="Close cart"></button><aside class="drawer-panel cart-sheet" role="dialog" aria-modal="true" aria-label="Shopping cart"><button class="drawer-close" type="button" data-drawer-close aria-label="Close cart">' + icon('close') + '</button><div class="drawer-heading"><strong>Your little bag ♡</strong><span data-cart-caption></span></div><div id="cart-drawer-content" class="cart-drawer-content"></div></aside></div>' +
       '<div class="toast" id="site-toast" role="status" aria-live="polite" hidden></div>');
     updateCartCount();
+  }
+
+  async function updateAccountNavigation() {
+    var links = document.querySelectorAll('[data-account-link], .desktop-nav a[href="auth.html"]');
+    if (!links.length || !window.supabase) return;
+    try {
+      var db = window.supabase.createClient('https://ucdnomryfppbpztdifwc.supabase.co', 'sb_publishable_vpppYo0jhiZceNamsEUaiQ_3AFlQJ7z');
+      var result = await db.auth.getSession();
+      var session = result.data && result.data.session;
+      var label = 'Sign in';
+      if (session) {
+        var profile = await db.from('profiles').select('full_name').eq('id', session.user.id).maybeSingle();
+        label = (profile.data && profile.data.full_name) || session.user.user_metadata?.full_name || session.user.email || 'My Account';
+      }
+      links.forEach(function(link) { link.textContent = label; });
+    } catch (error) {
+      console.warn('Account navigation could not be personalised.', error);
+    }
   }
 
   function sectionHeading(kicker, title, action, href) {
@@ -491,6 +509,7 @@
     await syncLiveCatalogue();
     shell();
     bindGlobalEvents();
+    updateAccountNavigation();
     var page = document.body.dataset.page || 'home';
     var titles = { home: 'TheKeeplily Co. | Little gifts, big feelings.', shop: 'Shop | TheKeeplily Co.', about: 'About | TheKeeplily Co.', owner: 'Owner | TheKeeplily Co.', contact: 'Contact | TheKeeplily Co.', custom: 'Custom Gifts | TheKeeplily Co.', checkout: 'Checkout Preview | TheKeeplily Co.', shipping: 'Shipping Policy | TheKeeplily Co.', returns: 'Returns & Refunds | TheKeeplily Co.', privacy: 'Privacy Policy | TheKeeplily Co.', terms: 'Terms & Conditions | TheKeeplily Co.', 'not-found': 'Page not found | TheKeeplily Co.' };
     if (titles[page]) document.title = titles[page];
