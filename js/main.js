@@ -344,7 +344,8 @@
   function renderOrderSummary(target) {
     var lines = cart.getCart();
     var subtotal = cart.subtotal();
-    var shipping = shippingFeeFor(subtotal);
+    var paymentTestOnly = lines.length > 0 && lines.every(function(line) { var item = cart.productById(line.productId); return item && item.sku === 'KL-LIVE-TEST-001'; });
+    var shipping = paymentTestOnly ? 0 : shippingFeeFor(subtotal);
     var total = subtotal + shipping;
     target.innerHTML = '<h2>Your order</h2>' + lines.map(function (line) { var product = cart.productById(line.productId); if (!product) return ''; return '<div class="summary-line"><img src="' + product.image + '" alt="" style="object-position:' + escapeHTML(product.imagePosition) + '"><div><strong>' + escapeHTML(product.name) + '</strong><small>' + escapeHTML(line.variant) + ' · Qty ' + line.quantity + (line.personalisation ? ' · ' + escapeHTML(line.personalisation) : '') + (line.giftMessage ? ' · Gift note: ' + escapeHTML(line.giftMessage) : '') + '</small></div><span>' + window.formatINR(cart.unitPrice(line) * line.quantity) + '</span></div>'; }).join('') + '<dl><div><dt>Subtotal</dt><dd>' + window.formatINR(subtotal) + '</dd></div><div><dt>Customisation</dt><dd>Included above</dd></div><div><dt>Shipping</dt><dd>' + (shipping === 0 ? 'Free' : window.formatINR(shipping)) + '</dd></div><div class="total"><dt>Total</dt><dd>' + window.formatINR(total) + '</dd></div></dl><p class="summary-shipping-note">Free shipping on orders of ₹2,000 and above.</p>';
   }
