@@ -390,6 +390,11 @@
     document.getElementById('main').innerHTML = '<section class="policy-page"><p class="eyebrow">STORE INFORMATION</p><h1>' + policy.title + '</h1><p class="policy-intro">' + policy.intro + '</p><div class="policy-card"><p class="placeholder-notice">✦ Editable owner-approved terms</p>' + policy.items.map(function (item) { return '<p>' + escapeHTML(item) + '</p>'; }).join('') + '<p>Last updated: to be confirmed by TheKeeplily Co.</p></div><a class="text-link" href="contact.html">Need help? Contact us ' + icon('arrow') + '</a></section>';
   }
 
+
+  function renderCredits() {
+    document.getElementById('main').innerHTML = '<section class="policy-page credits-page"><p class="eyebrow">THE PEOPLE BEHIND THE STORE</p><h1>Credits</h1><p class="policy-intro">The people and work that help bring TheKeeplily Co. to life.</p><div class="policy-card"><h2>Brand & Store</h2><p><strong>Sejal Luniya</strong><br>Founder · Store Owner</p><h2>Website</h2><p><strong>Lalit Mishra</strong><br>Website Development · Digital Experience</p><p class="subtle">TheKeeplily Co. is an independent handmade-gifts store. All product designs, photographs and descriptions remain credited to their respective creators.</p></div><a class="text-link" href="index.html">Back to the store ' + icon('arrow') + '</a></section>';
+  }
+
   function renderNotFound() {
     document.getElementById('main').innerHTML = '<section class="empty-page"><span class="big-404">404</span><h1>This little page wandered away.</h1><p>Let’s take you back to something lovely.</p><a href="shop.html" class="button primary">Visit the shop</a></section>';
   }
@@ -520,7 +525,7 @@
     bindGlobalEvents();
     updateAccountNavigation();
     var page = document.body.dataset.page || 'home';
-    var titles = { home: 'TheKeeplily Co. | Little gifts, big feelings.', shop: 'Shop | TheKeeplily Co.', about: 'About | TheKeeplily Co.', owner: 'Owner | TheKeeplily Co.', contact: 'Contact | TheKeeplily Co.', custom: 'Custom Gifts | TheKeeplily Co.', checkout: 'Checkout Preview | TheKeeplily Co.', shipping: 'Shipping Policy | TheKeeplily Co.', returns: 'Returns & Refunds | TheKeeplily Co.', privacy: 'Privacy Policy | TheKeeplily Co.', terms: 'Terms & Conditions | TheKeeplily Co.', 'not-found': 'Page not found | TheKeeplily Co.' };
+    var titles = { home: 'TheKeeplily Co. | Little gifts, big feelings.', shop: 'Shop | TheKeeplily Co.', about: 'About | TheKeeplily Co.', owner: 'Owner | TheKeeplily Co.', contact: 'Contact | TheKeeplily Co.', custom: 'Custom Gifts | TheKeeplily Co.', checkout: 'Checkout Preview | TheKeeplily Co.', shipping: 'Shipping Policy | TheKeeplily Co.', returns: 'Returns & Refunds | TheKeeplily Co.', privacy: 'Privacy Policy | TheKeeplily Co.', terms: 'Terms & Conditions | TheKeeplily Co.', 'credits': 'Credits | TheKeeplily Co.', 'not-found': 'Page not found | TheKeeplily Co.' };
     if (titles[page]) document.title = titles[page];
     if (page === 'home') renderHome();
     else if (page === 'shop') renderShop();
@@ -528,6 +533,7 @@
     else if (page === 'about') renderAbout();
     else if (page === 'owner') renderOwner();
     else if (page === 'contact') renderContact();
+    else if (page === 'credits') renderCredits();
     else if (page === 'custom') renderCustomGifts();
     else if (page === 'checkout') renderCheckout();
     else if (policies[page]) renderPolicy(page);
