@@ -241,7 +241,7 @@
       careInstructions: 'Not a physical product.',
       badges: ['TEST ONLY'],
       tags: ['payment-test'],
-      visible: true,
+      visible: false,
       featured: false,
       bestseller: false,
       newArrival: false,
