@@ -63,7 +63,7 @@
       '<footer><div class="footer-brand"><a class="wordmark" href="index.html"><span class="wordmark-flower">✿</span>TheKeeplily Co.</a><p>Little gifts, big feelings. ♡</p><p>Handmade in Vapi, Gujarat, India.</p></div>' +
       '<div><h3>Explore</h3><a href="shop.html">Shop</a><a href="custom-gifts.html">Custom Gifts</a><a href="about.html">About</a><a href="owner.html">Owner</a><a href="contact.html">Contact</a></div>' +
       '<div><h3>Helpful</h3><a href="shipping.html">Shipping</a><a href="returns.html">Returns</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="copyright.html">Copyright</a></div>' +
-      '<div><h3>Keep in touch</h3><a href="' + escapeHTML(settingText('instagram_url', 'https://instagram.com/the_keeplily.co')) + '" target="_blank" rel="noreferrer">@the_keeplily.co</a><a href="mailto:' + escapeHTML(settingText('contact_email', 'thekeeplilyco26@gmail.com')) + '">' + escapeHTML(settingText('contact_email', 'thekeeplilyco26@gmail.com')) + '</a></div>' +
+      '<div><h3>Keep in touch</h3><a href="' + escapeHTML(settingText('instagram_url', 'https://instagram.com/the_keeplily.co')) + '" target="_blank" rel="noreferrer">@the_keeplily.co</a><a href="https://mail.google.com/mail/?view=cm&fs=1&to=thekeeplilyco26@gmail.com" target="_blank" rel="noreferrer">thekeeplilyco26@gmail.com</a></div>' +
       '<p class="copyright">© 2026 TheKeeplily Co. · Made with a little love ♡</p></footer>';
 
     document.body.insertAdjacentHTML('beforeend',
