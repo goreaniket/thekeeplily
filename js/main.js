@@ -464,7 +464,7 @@
           customisationNotes:base.customisationNotes || '', madeToOrder:true,
           preparationTime:base.preparationTime || 'Preparation time will be confirmed before dispatch.',
           careInstructions:row.care_instructions || base.careInstructions || '',
-          badges:base.badges || [], tags:row.tags || base.tags || [], visible:true,
+          badges:base.badges || [], tags:row.tags || base.tags || [], visible:row.sku !== 'KL-LIVE-TEST-001',
           featured:!!row.is_featured, bestseller:!!row.is_bestseller, newArrival:!!row.is_new_arrival, visible:true, createdAt:row.created_at
         });
       });
