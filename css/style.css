@@ -23,3 +23,18 @@ footer{position:relative;padding:75px 7vw 30px;display:grid;grid-template-column
 @media(max-width:520px){.toast{right:14px;bottom:14px;max-width:calc(100vw - 28px)}.header-actions{gap:0}.icon-button,.mobile-menu-button{width:38px;height:38px}.cart-lines article{grid-template-columns:70px 1fr}.cart-lines article>img{width:70px;height:86px}.custom-gift-card{width:100%;transform:none}}
 
 .account-nav-link{display:inline-flex;align-items:center;justify-content:center;max-width:190px;min-height:40px;padding:0 16px!important;border:1px solid #d8d2cf;border-radius:999px;background:rgba(255,255,255,.48);color:var(--brown);font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .2s,border-color .2s,box-shadow .2s}.account-nav-link:hover{background:#fff;border-color:#c9b7b3;box-shadow:0 2px 8px rgba(50,35,30,.06);color:var(--brown)!important}.mobile-nav .account-nav-link{align-self:flex-start;flex:0 0 auto;margin:14px 0 10px;padding:10px 16px!important;border-bottom:1px solid #d8d2cf;font-size:14px}
+
+
+/* Mobile parity: keep the shop compact and preserve product actions. */
+@media(max-width:520px){
+  body[data-page="shop"] .page-hero{padding:54px 20px 48px}
+  body[data-page="shop"] .page-hero .eyebrow{margin-bottom:14px}
+  body[data-page="shop"] .page-hero h1{font-size:clamp(38px,11vw,44px);line-height:.98}
+  body[data-page="shop"] .page-hero>p:last-child{margin:16px auto 0;font-size:15px;line-height:1.55}
+  body[data-page="shop"] .shop-layout{padding:32px 18px 64px}
+  body[data-page="shop"] .results-toolbar{align-items:center;gap:10px}
+  body[data-page="shop"] .results-toolbar label{flex-direction:row;align-items:center;gap:7px;white-space:nowrap}
+  body[data-page="shop"] .results-toolbar select{max-width:135px;min-height:40px}
+  .product-card .card-actions{grid-template-columns:minmax(0,1fr) 38px}
+  .product-card .card-actions a{display:flex;min-height:39px}
+}
