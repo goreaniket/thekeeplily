@@ -212,7 +212,6 @@
       newArrival: false,
       createdAt: '2026-03-15'
     }
-    }
   ];
 
   window.KEEPLILY_CATEGORIES = ['Clay Charms', 'Candles', 'Phone Accessories', 'Cards', 'Wax Sachets'];
