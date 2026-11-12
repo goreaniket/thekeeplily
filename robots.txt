@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
 Disallow: /checkout
-Sitemap: /sitemap.xml
+Disallow: /admin
+Disallow: /admin.html
+Sitemap: https://thekeeplilyco.vercel.app/sitemap.xml
