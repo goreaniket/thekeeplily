@@ -217,13 +217,24 @@
     var state = { variant: product.variants[0], quantity: 1 };
     document.getElementById('main').innerHTML =
       '<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Home</a><span>/</span><a href="shop.html">Shop</a><span>/</span><span>' + escapeHTML(product.name) + '</span></nav>' +
-      '<section class="product-page"><div class="product-gallery"><div class="main-product-image"><img src="' + product.image + '" alt="' + escapeHTML(product.name) + '" style="object-position:' + escapeHTML(product.imagePosition) + '"><span class="zoom-note">' + icon('search') + ' A closer look</span></div><div class="thumb-row"><button class="active" type="button"><img src="' + product.image + '" alt="' + escapeHTML(product.name) + ', front view" style="object-position:' + escapeHTML(product.imagePosition) + '"></button><button type="button"><img src="' + product.image + '" alt="' + escapeHTML(product.name) + ', styled view" style="object-position:68% 50%"></button></div></div>' +
+      '<section class="product-page"><div class="product-gallery"><div class="main-product-image"><img id="main-product-photo" src="' + (product.galleryImages[0] || {}).url + '" alt="' + escapeHTML((product.galleryImages[0] || {}).alt || product.name) + '"><span class="zoom-note">' + icon('search') + ' A closer look</span></div><div class="thumb-row" aria-label="Product photos">' + product.galleryImages.map(function(image, index){ return '<button class="' + (index === 0 ? 'active' : '') + '" type="button" data-gallery-index="' + index + '" aria-label="View product photo ' + (index + 1) + '"><img src="' + image.url + '" alt="' + escapeHTML(image.alt || product.name) + '"></button>'; }).join('') + '</div></div>' +
       '<div class="product-panel"><p class="eyebrow">' + escapeHTML(product.category.toUpperCase()) + '</p><div class="product-title-row"><h1>' + escapeHTML(product.name) + '</h1><button class="wish-button' + (cart.getWishlist().indexOf(product.id) >= 0 ? ' active' : '') + '" type="button" data-wish="' + product.id + '" aria-label="Toggle wishlist">' + (cart.getWishlist().indexOf(product.id) >= 0 ? '♥' : '♡') + '</button></div><div class="detail-price"><strong id="product-price"></strong>' + (product.madeToOrder ? '<span>Made to order</span>' : '<span>Available</span>') + '</div><p class="detail-lead">' + escapeHTML(product.shortDescription) + '</p><div class="stock-note">' + (product.stock === null ? 'Availability confirmed with your order' : product.stock + ' in stock') + '</div>' +
       '<div class="choice-block"><span>Choose an option</span><div class="variant-row">' + product.variants.map(function (variant, index) { return '<button class="' + (index === 0 ? 'active' : '') + '" type="button" data-variant="' + escapeHTML(variant) + '">' + escapeHTML(variant) + (product.variantPricing[variant] ? ' +' + window.formatINR(product.variantPricing[variant]) : '') + '</button>'; }).join('') + '</div></div>' +
       (product.customisable ? '<div class="personalise-box"><label class="check-line"><input id="customisation-toggle" type="checkbox"><span><strong>Make it personal</strong>' + (product.customisationCharge ? ' +' + window.formatINR(product.customisationCharge) : ' Included') + '</span></label><label id="personalisation-field" hidden>Personalisation details<textarea id="personalisation" maxlength="180" placeholder="' + escapeHTML(product.customisationNotes) + '"></textarea><small><span id="personalisation-count">0</span>/180 characters</small></label></div>' : '') +
       '<label class="gift-message">Optional gift message<textarea id="gift-message" placeholder="A little note for someone special…" maxlength="200"></textarea></label><div class="purchase-row"><div class="quantity"><button id="product-decrease" type="button" aria-label="Decrease quantity">' + icon('minus') + '</button><span id="product-quantity">1</span><button id="product-increase" type="button" aria-label="Increase quantity">' + icon('plus') + '</button></div><button class="button primary grow" id="product-add" type="button">Add to bag ' + icon('bag') + '</button></div><button class="button secondary full" id="buy-now" type="button">Buy now</button><div class="micro-trust"><span>' + icon('package') + 'Carefully packed</span><span>♡<br>Made with love</span><span>✦<br>Preview mode</span></div></div></section>' +
       '<section class="detail-sections"><details open><summary>Description</summary><p>' + escapeHTML(product.description) + '</p></details><details><summary>Details</summary><p><strong>Materials:</strong> ' + escapeHTML(product.materials) + '<br><strong>Dimensions:</strong> ' + escapeHTML(product.dimensions) + '<br><strong>Colours:</strong> ' + escapeHTML(product.colours.join(', ')) + '<br><strong>Stock:</strong> ' + (product.stock === null ? 'Made to order / confirmed before dispatch' : product.stock) + '<br><strong>Preparation:</strong> ' + escapeHTML(product.preparationTime) + '</p></details><details><summary>Care Instructions</summary><p>' + escapeHTML(product.careInstructions) + '</p></details><details><summary>Shipping information</summary><p>Shipping charges and the estimated delivery timeline are shown before an order is confirmed.</p></details></section>' +
       '<section class="section products-section">' + sectionHeading('MORE TO KEEP', 'You May Also Like ♡') + '<div class="product-grid" id="related-products"></div></section>';
+
+    var mainProductPhoto = document.getElementById('main-product-photo');
+    document.querySelectorAll('[data-gallery-index]').forEach(function(button){
+      button.addEventListener('click', function(){
+        var image = product.galleryImages[Number(button.dataset.galleryIndex)];
+        if (!image || !mainProductPhoto) return;
+        mainProductPhoto.src = image.url;
+        mainProductPhoto.alt = image.alt || product.name;
+        document.querySelectorAll('[data-gallery-index]').forEach(function(item){ item.classList.toggle('active', item === button); });
+      });
+    });
 
     function currentPrice() {
       return productPrice(product) + (product.variantPricing[state.variant] || 0) + ((document.getElementById('customisation-toggle') || {}).checked ? product.customisationCharge : 0);
@@ -468,7 +479,7 @@
     if (!window.supabase || !['home','shop','product','checkout'].includes(document.body.dataset.page || 'home')) return;
     try {
       var client = window.supabase.createClient('https://ucdnomryfppbpztdifwc.supabase.co','sb_publishable_vpppYo0jhiZceNamsEUaiQ_3AFlQJ7z');
-      var result = await client.from('products').select('id,category_id,sku,slug,name,short_description,description,price,sale_price,status,is_featured,is_bestseller,is_new_arrival,is_customisable,customisation_charge,stock_quantity,track_inventory,allow_backorder,variants,tags,materials,dimensions,care_instructions,product_images(storage_path,is_primary)').eq('status','active').order('created_at',{ascending:false});
+      var result = await client.from('products').select('id,category_id,sku,slug,name,short_description,description,price,sale_price,status,is_featured,is_bestseller,is_new_arrival,is_customisable,customisation_charge,stock_quantity,track_inventory,allow_backorder,variants,tags,materials,dimensions,care_instructions,product_images(storage_path,alt_text,sort_order,is_primary)').eq('status','active').order('created_at',{ascending:false});
       if (result.error) throw result.error;
       var categoryResult = await client.from('categories').select('id,name,slug,sort_order,is_active').eq('is_active',true).order('sort_order');
       if (categoryResult.error) throw categoryResult.error;
@@ -485,14 +496,18 @@
         var variants = Array.isArray(row.variants) ? row.variants : [];
         var variantPricing = {};
         variants.forEach(function(v){ variantPricing[v.name || v.label || 'Standard'] = Number(v.price_adjustment || v.price || 0); });
-        var primary = (row.product_images || []).find(function(i){return i.is_primary && i.storage_path;}) || (row.product_images || []).find(function(i){return i.storage_path;});
-        var image = base.image || 'assets/keeplily-collection.png';
-        if (primary && primary.storage_path) image = /^https?:\/\//i.test(primary.storage_path) ? primary.storage_path : client.storage.from('product-images').getPublicUrl(primary.storage_path).data.publicUrl;
+        var imageRows = (row.product_images || []).filter(function(i){return i.storage_path;}).sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+        var galleryImages = imageRows.map(function(item){
+          return {url:/^https?:\/\//i.test(item.storage_path) ? item.storage_path : client.storage.from('product-images').getPublicUrl(item.storage_path).data.publicUrl, alt:item.alt_text || row.name, primary:!!item.is_primary};
+        });
+        galleryImages.sort(function(a,b){return Number(b.primary)-Number(a.primary);});
+        var image = galleryImages.length ? galleryImages[0].url : (base.image || 'assets/keeplily-collection.png');
+        if (!galleryImages.length) galleryImages = [{url:image,alt:row.name,primary:true}];
         return Object.assign({}, base, {
           id:row.id, sku:row.sku, slug:row.slug, name:row.name, category:categoryResult.data.find(function(c){return c.id===row.category_id;})?.name || base.category || 'Gifts',
           price:Number(row.price), salePrice:row.sale_price===null?null:Number(row.sale_price),
           shortDescription:row.short_description || '', description:row.description || '',
-          image:image, imagePosition:base.imagePosition || 'center', additionalImages:[],
+          image:image, imagePosition:base.imagePosition || 'center', galleryImages:galleryImages, additionalImages:galleryImages.slice(1).map(function(item){return item.url;}),
           materials:row.materials || base.materials || '', dimensions:row.dimensions || base.dimensions || '',
           variants:variants.map(function(v){return v.name || v.label || 'Standard';}),
           variantPricing:variantPricing, customisable:!!row.is_customisable, customisationCharge:Number(row.customisation_charge || 0), stock:row.track_inventory?Number(row.stock_quantity||0):null, availability:row.track_inventory&&Number(row.stock_quantity||0)<=0&&!row.allow_backorder?'sold-out':'available',
