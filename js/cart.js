@@ -78,7 +78,9 @@
   }
 
   function count() {
-    return getCart().reduce(function (total, line) { return total + line.quantity; }, 0);
+    return getCart().reduce(function (total, line) {
+      return productById(line.productId) ? total + line.quantity : total;
+    }, 0);
   }
 
   function subtotal() {
