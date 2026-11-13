@@ -9,3 +9,13 @@
 @media(max-width:420px){.owner-guide-grid{grid-template-columns:1fr}}
 
 .product-image-preview{display:flex;align-items:center;gap:12px;min-height:76px;padding:10px;border:1px dashed var(--admin-line);border-radius:9px;background:#fffdfa;color:var(--admin-muted);font-size:11px}.product-image-preview img{width:76px;height:76px;object-fit:cover;border-radius:7px;background:#f7eeee}.product-image-preview span{line-height:1.5}.image-preview-empty{padding:12px 4px}
+
+
+/* Mobile product editor: keep the save action reachable while the long form scrolls. */
+@media(max-width:700px){
+ .admin-dialog{width:calc(100% - 20px);max-width:none;max-height:calc(100dvh - 20px);margin:auto;overflow:hidden;overscroll-behavior:contain}
+ .admin-dialog form{box-sizing:border-box;width:100%;max-height:calc(100dvh - 20px);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:16px}
+ .admin-dialog .dialog-actions{position:sticky;bottom:-16px;z-index:3;background:#fffefd;padding:12px 0 max(12px,env(safe-area-inset-bottom));margin-top:4px}
+ .admin-dialog .dialog-actions button{min-height:44px;touch-action:manipulation}
+ .admin-dialog input,.admin-dialog select,.admin-dialog textarea{font-size:16px}
+}
