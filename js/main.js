@@ -4,6 +4,7 @@
   var products = window.KEEPLILY_PRODUCTS || [];
   var categories = window.KEEPLILY_CATEGORIES || [];
   var settings = window.KEEPLILY_SETTINGS || {};
+  var categoryImagesByName = {};
   var cart = window.KeeplilyCart;
 
   function settingText(key, fallback) {
@@ -139,7 +140,7 @@
   function renderHome() {
     document.getElementById('main').innerHTML =
       '<section class="hero"><div class="hero-copy"><p class="eyebrow">HANDMADE IN VAPI, WITH LOVE</p><h1>' + escapeHTML(settingText('homepage_hero_title', 'Little keepsakes for big feelings.')) + '</h1><p class="hero-lead">' + escapeHTML(settingText('homepage_hero_description', 'Handmade little things for your favourite people—thoughtfully created to celebrate tiny joys and everything worth keeping.')) + '</p><div class="hero-buttons"><a class="button primary" href="shop.html">Shop now ' + icon('arrow') + '</a><a class="button secondary" href="custom-gifts.html">Custom gifts</a></div><div class="hero-notes"><span>♡ Handmade with care</span><span>✦ Personalised for you</span></div></div><div class="hero-art"><div class="hero-image-shell">' + (settingText("homepage_hero_image_url","assets/keeplily-collection.png") ? '<img class="hero-image" src="' + escapeHTML(settingText("homepage_hero_image_url","assets/keeplily-collection.png")) + '" alt="TheKeeplily handmade gift collection">' : '<div class="hero-image-empty" aria-label="Homepage hero image removed"></div>') + '<span class="floating-note">made to be kept ♡</span></div>' + '<span class="sparkle sparkle-one">✦</span><span class="sparkle sparkle-two">✧</span></div></section>' +
-      '<section class="section categories-section">' + sectionHeading('A LITTLE SOMETHING FOR EVERY FEELING', 'Find Your Little Favourite ♡') + '<div class="category-grid">' + categories.map(function (name, index) { return '<a class="category-card category-' + index + '" href="shop.html?category=' + encodeURIComponent(name) + '"><img src="assets/keeplily-collection.png" alt="" loading="lazy"><div><span>0' + (index + 1) + '</span><h3>' + escapeHTML(name) + '</h3>' + icon('arrow') + '</div></a>'; }).join('') + '</div></section>' +
+      '<section class="section categories-section">' + sectionHeading('A LITTLE SOMETHING FOR EVERY FEELING', 'Find Your Little Favourite ♡') + '<div class="category-grid">' + categories.map(function (name, index) { var photo = categoryImagesByName[name] || 'assets/keeplily-collection.png'; return '<a class="category-card category-' + index + '" href="shop.html?category=' + encodeURIComponent(name) + '"><img src="' + escapeHTML(photo) + '" alt="' + escapeHTML(name) + '" loading="lazy"><div><span>0' + (index + 1) + '</span><h3>' + escapeHTML(name) + '</h3>' + icon('arrow') + '</div></a>'; }).join('') + '</div></section>' +
       '<section class="section products-section">' + sectionHeading('CHOSEN WITH LOVE', 'Our Little Favourites ♡', 'Shop all', 'shop.html') + '<div class="product-grid" id="home-favourites"></div></section>' +
       '<section class="custom-banner"><div class="custom-copy"><span class="mini-script">your idea, made little</span><h2>Have something special in mind?<br><em>Let’s create it together. ♡</em></h2><p>Tell us the person, the moment and your favourite colours. We’ll help turn the feeling into a keepsake.</p><a class="button primary" href="custom-gifts.html">Customise your gift ' + icon('arrow') + '</a></div><div class="custom-gift-card"><span class="gift-symbol">♡</span><strong>Made especially for you</strong><span>One thoughtful detail at a time</span></div></section>' +
       '<section class="story-section"><div class="story-image"><img src="assets/keeplily-collection.png" alt="Close view of handmade Keeplily pieces" loading="lazy"><span class="story-stamp">made by hand<br>with love ♡</span></div><div class="story-copy"><p class="eyebrow">OUR LITTLE STORY</p><h2>For moments that deserve more than an ordinary gift.</h2><p>TheKeeplily Co. creates little handmade pieces with love and care, made to turn everyday moments into something worth keeping.</p><p class="story-signoff">Handmade with love. Made to be kept. ♡</p><a class="text-link" href="about.html">Meet TheKeeplily Co. ' + icon('arrow') + '</a></div></section>' +
@@ -546,6 +547,9 @@
       if (settingsResult.error) throw settingsResult.error;
       settings = {};
       (settingsResult.data || []).forEach(function(item){ settings[item.key] = item.value; });
+      var categoryPhotoSettings = settings.category_image_urls && typeof settings.category_image_urls === 'object' ? settings.category_image_urls : {};
+      categoryImagesByName = {};
+      categoryResult.data.forEach(function(category){ categoryImagesByName[category.name] = categoryPhotoSettings[category.slug] || ''; });
       window.KEEPLILY_SETTINGS = settings;
       var staticProducts = window.KEEPLILY_PRODUCTS || [];
       var bySku = {};
@@ -598,6 +602,7 @@
       console.warn('Live catalogue unavailable; using the bundled catalogue.', error);
       products = window.KEEPLILY_PRODUCTS || [];
       categories = window.KEEPLILY_CATEGORIES || [];
+      categoryImagesByName = {};
     }
   }
 
