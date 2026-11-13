@@ -116,6 +116,26 @@
       : '<div class="empty-state"><span class="empty-icon">✦</span><h3>No little finds here yet</h3><p>Try another category or clear the filters.</p><a href="shop.html" class="button secondary">View all gifts</a></div>';
   }
 
+  function renderCustomHomepageSections() {
+    var raw = settings.homepage_custom_sections;
+    var sections = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.sections) ? raw.sections : []);
+    if (!sections.length) return '';
+    return sections.map(function (item) {
+      if (!item || typeof item !== 'object') return '';
+      var type = ['text', 'banner', 'image'].indexOf(item.type) >= 0 ? item.type : 'text';
+      var title = escapeHTML(item.title || '');
+      var body = escapeHTML(item.body || '');
+      var image = typeof item.image === 'string' && /^https:\/\//i.test(item.image) ? item.image : '';
+      var url = typeof item.url === 'string' && !/^\s*javascript:/i.test(item.url) ? item.url : '';
+      var button = escapeHTML(item.button || '');
+      var content = (title ? '<h2>' + title + '</h2>' : '') + (body ? '<p>' + body + '</p>' : '');
+      if (type === 'image' && image) content = '<div class="story-image"><img src="' + escapeHTML(image) + '" alt="' + title + '" loading="lazy"></div><div class="story-copy">' + content + '</div>';
+      if (type === 'banner') content = '<div class="custom-copy">' + content + (button && url ? '<a class="button primary" href="' + escapeHTML(url) + '">' + button + ' ' + icon('arrow') + '</a>' : '') + '</div>';
+      else if (button && url) content += '<a class="text-link" href="' + escapeHTML(url) + '">' + button + ' ' + icon('arrow') + '</a>';
+      return '<section class="section ' + (type === 'banner' ? 'custom-banner' : type === 'image' ? 'story-section' : 'products-section') + ' homepage-added-section">' + content + '</section>';
+    }).join('');
+  }
+
   function renderHome() {
     document.getElementById('main').innerHTML =
       '<section class="hero"><div class="hero-copy"><p class="eyebrow">HANDMADE IN VAPI, WITH LOVE</p><h1>' + escapeHTML(settingText('homepage_hero_title', 'Little keepsakes for big feelings.')) + '</h1><p class="hero-lead">' + escapeHTML(settingText('homepage_hero_description', 'Handmade little things for your favourite people—thoughtfully created to celebrate tiny joys and everything worth keeping.')) + '</p><div class="hero-buttons"><a class="button primary" href="shop.html">Shop now ' + icon('arrow') + '</a><a class="button secondary" href="custom-gifts.html">Custom gifts</a></div><div class="hero-notes"><span>♡ Handmade with care</span><span>✦ Personalised for you</span></div></div><div class="hero-art"><div class="hero-image-shell">' + (settingText("homepage_hero_image_url","assets/keeplily-collection.png") ? '<img class="hero-image" src="' + escapeHTML(settingText("homepage_hero_image_url","assets/keeplily-collection.png")) + '" alt="TheKeeplily handmade gift collection">' : '<div class="hero-image-empty" aria-label="Homepage hero image removed"></div>') + '<span class="floating-note">made to be kept ♡</span></div>' + '<span class="sparkle sparkle-one">✦</span><span class="sparkle sparkle-two">✧</span></div></section>' +
@@ -127,6 +147,7 @@
       '<section class="section occasions">' + sectionHeading('GIFT BY MOMENT', 'A little love, for every occasion') + '<div class="occasion-row">' + [['Birthday','Tiny ways to make their day'],['Friendship','For your favourite human'],['Anniversary','A little piece of your story'],['Festive','Warmth, wrapped beautifully'],['Self-gifting','Because you count too']].map(function (occasion) { return '<a href="shop.html?q=' + encodeURIComponent(occasion[0]) + '"><span>♡</span><strong>' + occasion[0] + '</strong><small>' + occasion[1] + '</small></a>'; }).join('') + '</div></section>' +
       '<section class="why-section">' + sectionHeading('THE KEEPLILY TOUCH', 'Why it feels special ♡') + '<div class="trust-grid"><div class="trust-card"><span>♡</span><h3>Handmade With Care</h3><p>Every little piece gets patient hands and thoughtful finishing.</p></div><div class="trust-card"><span>✦</span><h3>Made Personal</h3><p>Details that help your gift feel unmistakably theirs.</p></div><div class="trust-card"><span>♡</span><h3>Thoughtful Gifting</h3><p>Sweet, useful and meaningful—without feeling overdone.</p></div><div class="trust-card"><span>⌂</span><h3>Packed With Love</h3><p>A warm unboxing moment, ready for someone special.</p></div></div></section>' +
       '<section class="instagram-section"><div><p class="eyebrow">LITTLE THINGS, IN THE MAKING</p><h2>Find us on Instagram ♡</h2><p>Follow the tiny details, new drops and behind-the-scenes moments.</p><a class="button secondary" href="https://instagram.com/the_keeplily.co" target="_blank" rel="noreferrer">' + icon('camera') + '@the_keeplily.co</a></div><div class="insta-collage"><img src="assets/keeplily-collection.png" alt="Keeplily handmade gifting collection" loading="lazy"><span>♥ little details, daily</span></div></section>' +
+      renderCustomHomepageSections() +
       '<section class="newsletter"><div><p class="eyebrow">A LITTLE LOVE LETTER, SOMETIMES</p><h2>New keepsakes, gifting ideas &amp; sweet little updates.</h2></div><form id="newsletter-form"><label class="sr-only" for="newsletter-email">Email address</label><input id="newsletter-email" required type="email" placeholder="Your email address"><button aria-label="Join newsletter">' + icon('arrow') + '</button></form></section>';
     renderProductGrid(document.getElementById('home-favourites'), products.filter(function (product) { return product.visible && product.bestseller; }).slice(0, 4));
     renderProductGrid(document.getElementById('home-featured'), products.filter(function (product) { return product.visible && product.featured; }).slice(0, 4));
