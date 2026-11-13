@@ -212,6 +212,46 @@
     var product = products.find(function (item) { return item.slug === slug; });
     if (!product) { renderNotFound(); return; }
     document.title = product.name + ' | TheKeeplily Co.';
+    var productUrl = 'https://www.thekeeplilyco.store/product.html?product=' + encodeURIComponent(product.slug);
+    var productDescription = product.shortDescription || product.description || ('Shop ' + product.name + ' at TheKeeplily Co.');
+    var productImage = (product.galleryImages && product.galleryImages[0] && product.galleryImages[0].url) || product.image || 'https://www.thekeeplilyco.store/assets/og.png';
+    function setSeoMeta(attribute, key, value) {
+      var selector = 'meta[' + attribute + '="' + key + '"]';
+      var node = document.head.querySelector(selector);
+      if (!node) { node = document.createElement('meta'); node.setAttribute(attribute, key); document.head.appendChild(node); }
+      node.setAttribute('content', value);
+    }
+    setSeoMeta('name', 'description', productDescription);
+    setSeoMeta('property', 'og:type', 'product');
+    setSeoMeta('property', 'og:title', product.name + ' | TheKeeplily Co.');
+    setSeoMeta('property', 'og:description', productDescription);
+    setSeoMeta('property', 'og:url', productUrl);
+    setSeoMeta('property', 'og:image', new URL(productImage, window.location.href).href);
+    var canonicalNode = document.head.querySelector('link[rel="canonical"]');
+    if (!canonicalNode) { canonicalNode = document.createElement('link'); canonicalNode.rel = 'canonical'; document.head.appendChild(canonicalNode); }
+    canonicalNode.href = productUrl;
+    var productSchema = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.name,
+      description: productDescription,
+      image: [new URL(productImage, window.location.href).href],
+      sku: product.sku,
+      category: product.category,
+      brand: { '@type': 'Brand', name: 'TheKeeplily Co.' },
+      offers: {
+        '@type': 'Offer',
+        url: productUrl,
+        priceCurrency: 'INR',
+        price: String(productPrice(product)),
+        availability: product.availability === 'available' ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        seller: { '@type': 'Organization', name: 'TheKeeplily Co.' }
+      }
+    };
+    var productSchemaNode = document.createElement('script');
+    productSchemaNode.type = 'application/ld+json';
+    productSchemaNode.textContent = JSON.stringify(productSchema);
+    document.head.appendChild(productSchemaNode);
     var state = { variant: product.variants[0], quantity: 1 };
     document.getElementById('main').innerHTML =
       '<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Home</a><span>/</span><a href="shop.html">Shop</a><span>/</span><span>' + escapeHTML(product.name) + '</span></nav>' +
