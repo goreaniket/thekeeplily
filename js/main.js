@@ -557,15 +557,20 @@
         });
       });
       categories = categoryResult.data.map(function(c){return c.name;});
-      // Keep older browser carts working after live catalogue IDs replace bundled IDs.
+      // Migrate legacy bundled IDs to live catalogue IDs and discard orphaned
+      // browser-cart entries left behind by a catalogue/database reset.
       var savedCart = cart.getCart();
       savedCart.forEach(function(line){
         var oldProduct = staticProducts.find(function(p){ return p.id === line.productId; });
-        if (!oldProduct) return;
-        var liveProduct = products.find(function(p){ return p.sku === oldProduct.sku; });
-        if (liveProduct) line.productId = liveProduct.id;
+        if (oldProduct) {
+          var liveProduct = products.find(function(p){ return p.sku === oldProduct.sku; });
+          if (liveProduct) line.productId = liveProduct.id;
+        }
       });
-      if (savedCart.length) cart.setCart(savedCart);
+      savedCart = savedCart.filter(function(line){
+        return products.some(function(p){ return p.id === line.productId; });
+      });
+      cart.setCart(savedCart);
       window.KEEPLILY_PRODUCTS = products;
       window.KEEPLILY_CATEGORIES = categories;
     } catch (error) {
