@@ -19,3 +19,30 @@
  .admin-dialog .dialog-actions button{min-height:44px;touch-action:manipulation}
  .admin-dialog input,.admin-dialog select,.admin-dialog textarea{font-size:16px}
 }
+
+/* Homepage editor spacing: presentation-only refinement. */
+#view-website > .panel + .panel{margin-top:18px}
+#view-website #homepage-editor .panel-head p,
+#view-website #homepage-sections-editor .panel-head p{margin:8px 0 0;color:var(--admin-muted);font-size:11px;line-height:1.6}
+#view-website #homepage-editor .form-two{gap:16px;margin-bottom:14px}
+#view-website #homepage-editor>label{display:grid;gap:7px;margin:12px 0;font-size:11px;font-weight:700;color:#78645e}
+#view-website #homepage-editor input,
+#view-website #homepage-editor textarea,
+#view-website #homepage-sections-editor input,
+#view-website #homepage-sections-editor select,
+#view-website #homepage-sections-editor textarea{box-sizing:border-box;width:100%;padding:10px;border:1px solid var(--admin-line);border-radius:7px;background:#fffdfa;color:#493a36;font:12px Arial}
+#view-website #homepage-editor small,
+#view-website #homepage-sections-editor label small{display:block;margin-top:4px;color:var(--admin-muted);font-size:10px;font-weight:400;line-height:1.5}
+#view-website #home-sections-list{display:grid;gap:14px}
+#view-website .homepage-custom-row{display:grid;gap:13px;padding:17px;margin-top:14px;background:#fffdfa}
+#view-website .homepage-custom-row .panel-head{margin:0 0 2px}
+#view-website .homepage-custom-row .panel-head h4{margin:0;font:500 17px Georgia;color:var(--admin-ink)}
+#view-website .homepage-custom-row>label{display:grid;gap:7px;font-size:11px;font-weight:700;color:#78645e}
+#view-website .homepage-custom-row .form-two{gap:12px}
+#view-website #homepage-editor .dialog-actions,
+#view-website #homepage-sections-editor .dialog-actions{margin-top:16px;gap:10px}
+@media(max-width:700px){
+ #view-website > .panel + .panel{margin-top:14px}
+ #view-website .homepage-custom-row{padding:13px;gap:11px}
+ #view-website #homepage-editor .form-two{gap:12px}
+}
