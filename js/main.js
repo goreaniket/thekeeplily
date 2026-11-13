@@ -352,7 +352,7 @@
         var sr=await db.auth.getSession(); if(sr.error) throw sr.error;
         var d=new FormData(form);
         var customer={name:d.get('name').trim(),email:d.get('email').trim(),phone:d.get('phone').trim()};
-        var address=paymentTestOnly?{}:{house:d.get('house').trim(),address:d.get('address').trim(),city:d.get('city').trim(),state:d.get('state').trim(),pin:d.get('pin').trim(),country:'India'};
+        var address=paymentTestOnly?{}:{name:customer.name,house:d.get('house').trim(),address:d.get('address').trim(),city:d.get('city').trim(),state:d.get('state').trim(),pin:d.get('pin').trim(),country:'India'};
         var items=lines.map(function(line){var p=cart.productById(line.productId);if(!p)throw new Error('A cart item is unavailable. Refresh your bag.');return {sku:p.sku,variant:line.variant,quantity:line.quantity,customisation:!!line.customisation,personalisation:line.personalisation||'',gift_message:line.giftMessage||''};});
         var pending=await db.rpc('create_pending_keeplily_order',{p_customer_name:customer.name,p_email:customer.email,p_phone:customer.phone,p_shipping_address:address,p_items:items,p_customer_note:(d.get('notes')||'').trim()||null});
         if(pending.error)throw pending.error;
