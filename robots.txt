@@ -3,4 +3,4 @@ Allow: /
 Disallow: /checkout
 Disallow: /admin
 Disallow: /admin.html
-Sitemap: https://thekeeplilyco.vercel.app/sitemap.xml
+Sitemap: https://www.thekeeplilyco.store/sitemap.xml
