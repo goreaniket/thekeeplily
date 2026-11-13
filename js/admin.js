@@ -74,7 +74,7 @@ popup.print();
 }catch(err){if(popup&&!popup.closed)popup.close();note(err.message||'Invoice could not be generated.',true);}
 }
 function productImageUrl(path){return !path?'':(path.indexOf('http://')===0||path.indexOf('https://')===0?path:db.storage.from('product-images').getPublicUrl(path).data.publicUrl);}
-function settingValue(key,fallback){const row=settings.find(x=>x.key===key);if(!row)return fallback;const value=row.value;if(typeof value==='string')return value;if(value&&typeof value.text==='string')return value.text;return fallback;}
+function settingValue(key,fallback){const row=settings.find(x=>x.key===key);if(!row)return fallback;const value=row.value;if(typeof value==='string')return value;if(value&&typeof value.text==='string')return value.text;if(value&&typeof value==='object')return value;return fallback;}
 function renderHomepageEditor(){const title=$('home-hero-title'),description=$('home-hero-description'),preview=$('home-hero-preview');if(!title||!description||!preview)return;title.value=settingValue('homepage_hero_title','Little keepsakes for big feelings.');description.value=settingValue('homepage_hero_description','Handmade little things for your favourite people—thoughtfully created to celebrate tiny joys and everything worth keeping.');const url=settingValue('homepage_hero_image_url','assets/keeplily-collection.png');preview.innerHTML=url?'<img src="'+esc(url)+'" alt="Current homepage photo"><span>Current homepage photo</span>':'<span class="image-preview-empty">No homepage photo. The image area is hidden on the storefront.</span>';}
 async function saveHomepageSetting(key,value){const r=await db.from('store_settings').upsert({key,value,updated_at:new Date().toISOString()},{onConflict:'key'});if(r.error)throw r.error;}
 
