@@ -544,9 +544,12 @@
       var categoryResult = await client.from('categories').select('id,name,slug,sort_order,is_active').eq('is_active',true).order('sort_order');
       if (categoryResult.error) throw categoryResult.error;
       var settingsResult = await client.from('store_settings').select('key,value');
-      if (settingsResult.error) throw settingsResult.error;
       settings = {};
-      (settingsResult.data || []).forEach(function(item){ settings[item.key] = item.value; });
+      if (settingsResult.error) {
+        console.warn('Store settings unavailable; using default store content.', settingsResult.error);
+      } else {
+        (settingsResult.data || []).forEach(function(item){ settings[item.key] = item.value; });
+      }
       var categoryPhotoSettings = settings.category_image_urls && typeof settings.category_image_urls === 'object' ? settings.category_image_urls : {};
       categoryImagesByName = {};
       categoryResult.data.forEach(function(category){ categoryImagesByName[category.name] = categoryPhotoSettings[category.slug] || ''; });
