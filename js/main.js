@@ -536,8 +536,17 @@
   }
 
   async function syncLiveCatalogue() {
-    if (!window.supabase || !['home','shop','product','checkout'].includes(document.body.dataset.page || 'home')) return;
+    if (!['home','shop','product','checkout'].includes(document.body.dataset.page || 'home')) return;
     try {
+      if (!window.supabase) {
+        await new Promise(function(resolve, reject) {
+          var script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
       var client = window.supabase.createClient('https://ucdnomryfppbpztdifwc.supabase.co','sb_publishable_vpppYo0jhiZceNamsEUaiQ_3AFlQJ7z');
       var result = await client.from('products').select('id,category_id,sku,slug,name,short_description,description,price,sale_price,status,is_featured,is_bestseller,is_new_arrival,is_customisable,customisation_charge,stock_quantity,track_inventory,allow_backorder,variants,tags,materials,dimensions,care_instructions,product_images(storage_path,alt_text,sort_order,is_primary)').eq('status','active').order('created_at',{ascending:false});
       if (result.error) throw result.error;
