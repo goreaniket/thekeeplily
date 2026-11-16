@@ -23,26 +23,43 @@
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "OnlineStore",
-    "name": "TheKeeplily Co.",
-    "alternateName": "Keeplily",
-    "url": "https://www.thekeeplilyco.store/",
-    "description": "Thoughtful handmade gifts, keepsakes and personalised creations from TheKeeplily Co., based in Vapi, Gujarat, India.",
-    "image": "https://www.thekeeplilyco.store/assets/og.png",
-    "email": "thekeeplilyco26@gmail.com",
-    "contactPoint": {
-      "@type": "ContactPoint",
-      "contactType": "customer service",
-      "email": "thekeeplilyco26@gmail.com"
-    },
-    "address": {
-      "@type": "PostalAddress",
-      "addressLocality": "Vapi",
-      "addressRegion": "Gujarat",
-      "addressCountry": "IN"
-    },
-    "sameAs": [
-      "https://www.instagram.com/the_keeplily.co/"
+    "@graph": [
+      {
+        "@type": "OnlineStore",
+        "@id": "https://www.thekeeplilyco.store/#store",
+        "name": "TheKeeplily Co.",
+        "alternateName": "Keeplily",
+        "url": "https://www.thekeeplilyco.store/",
+        "description": "The official online store of TheKeeplily Co., an Indian handmade gifting brand based in Vapi, Gujarat. Shop handmade gifts, clay charms, candles, phone accessories, cards, wax sachets, gift sets and personalised keepsakes.",
+        "image": "https://www.thekeeplilyco.store/assets/og.png",
+        "email": "thekeeplilyco26@gmail.com",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer service",
+          "email": "thekeeplilyco26@gmail.com",
+          "url": "https://www.thekeeplilyco.store/contact.html"
+        },
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Vapi",
+          "addressRegion": "Gujarat",
+          "addressCountry": "IN"
+        },
+        "sameAs": [
+          "https://www.instagram.com/the_keeplily.co/",
+          "https://www.youtube.com/@thekeeplilyco"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://www.thekeeplilyco.store/#website",
+        "url": "https://www.thekeeplilyco.store/",
+        "name": "TheKeeplily Co. Official Website",
+        "publisher": {
+          "@id": "https://www.thekeeplilyco.store/#store"
+        },
+        "inLanguage": "en-IN"
+      }
     ]
   }
   </script>
@@ -52,7 +69,15 @@
 </head>
 <body data-page="home">
   <div id="site-header"></div>
-  <main id="main"></main>
+  <main id="main">
+    <section class="section official-store-section" aria-labelledby="official-store-heading">
+      <p class="eyebrow">THE OFFICIAL ONLINE STORE</p>
+      <h1 id="official-store-heading">TheKeeplily Co. — Handmade &amp; Personalised Gifts</h1>
+      <p>TheKeeplily Co. is an Indian handmade gifting brand based in Vapi, Gujarat. Explore clay charms, candles, phone accessories, cards, wax sachets, gift sets and personalised keepsakes.</p>
+      <p>For online shopping, browse products and place orders through the Shop and checkout on this official website. Instagram is used for brand updates and enquiries; the YouTube channel shares video content.</p>
+      <p><a href="shop.html">Shop TheKeeplily Co. products</a> · <a href="custom-gifts.html">Request a custom gift</a> · <a href="contact.html">Contact the store</a></p>
+    </section>
+  </main>
   <div id="site-footer"></div>
   <noscript><p class="noscript">Please enable JavaScript to browse products and use the cart.</p></noscript>
 </body>
