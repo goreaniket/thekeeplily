@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+<title id="title">The Keeplily Co. — Little gifts, big feelings</title>
+<rect width="512" height="512" rx="0" fill="#fff7fa"/>
+<g fill="#111">
+<text x="256" y="135" text-anchor="middle" font-family="Georgia,serif" font-size="58">THE</text>
+<text x="250" y="278" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-size="108" letter-spacing="-7">Keeplily</text>
+<text x="424" y="278" text-anchor="middle" font-family="Georgia,serif" font-size="49">Co.</text>
+</g>
+<path d="M383 126 C361 98 321 116 337 149 L383 188 L430 149 C446 116 405 98 383 126Z" fill="#e8b6c7"/>
+<path d="M105 331 H407" stroke="#efd7df" stroke-width="2"/>
+<text x="256" y="385" text-anchor="middle" fill="#d5a2b4" font-family="Arial,sans-serif" font-size="22" letter-spacing="5">LITTLE GIFTS, BIG FEELINGS</text>
+</svg>
